@@ -1,8 +1,12 @@
+import warnings
 from datetime import datetime
 from os import mkdir, path
 
-import napari
 import pandas as pd
+
+warnings.simplefilter(action='ignore')
+
+import napari # noqa
 
 
 def create_save_dir(img_path, img_name):
@@ -36,16 +40,42 @@ def create_save_dir(img_path, img_name):
     return save_dir
 
 
-def save_soma(blobs, save_dir, save_fname):
+def save_soma(blobs, px_size, save_dir, save_fname):
     """
+    Description
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
     """
-    df = pd.DataFrame({'z': blobs[:, 0], 'y': blobs[:, 1], 'x': blobs[:, 2], 'rad': blobs[:, 3]})
+    # convert to [μm]
+    blobs = blobs * px_size[0]
+
+    # save to .csv
+    df = pd.DataFrame({'z [μm]': blobs[:, 0], 'y [μm]': blobs[:, 1], 'x [μm]': blobs[:, 2], 'rad [μm]': blobs[:, 3]})
     df.to_csv(path.join(save_dir, save_fname + '.csv'), mode='a', sep=';', index=False, header=True)
 
 
-def view_soma(neu_img, blobs, face_color='orangered'):
+def view_soma(blobs, neu_img, method, edge_width=0.2):
     """
+    Description
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
     """
+    if method == 'log':
+        edge_color = 'lime'
+    elif method == 'dog':
+        edge_color = 'orangered'
+
     viewer = napari.view_image(neu_img, rgb=False)
-    viewer.add_points(blobs[:, :-1], size=blobs[:, -1], name='points', face_color=face_color)
+    viewer.add_points(blobs[:, :-1], size=blobs[:, -1], name='points',
+                      edge_color=edge_color, edge_width=edge_width, face_color=[0] * 4)
     napari.run()

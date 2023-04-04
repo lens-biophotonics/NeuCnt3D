@@ -5,7 +5,7 @@ import psutil
 from neuCnt3D.utils import get_available_cores
 
 
-def adjust_slice_coord(axis_iter, pad_rng, slice_shape, img_shape, slice_per_dim, axis, flip=False, min_edge=-1):
+def adjust_slice_coord(axis_iter, pad_rng, slice_shape, img_shape, axis):
     """
     Adjust image slice coordinates at boundaries.
 
@@ -23,17 +23,8 @@ def adjust_slice_coord(axis_iter, pad_rng, slice_shape, img_shape, slice_per_dim
     img_shape: numpy.ndarray (shape=(3,), dtype=int)
         total image shape [px]
 
-    slice_per_dim: int
-        number of image slices along axis
-
     axis: int
         axis index
-
-    flip: bool
-        if True, flip axes coordinates
-
-    min_edge: int
-        threshold on the minimum side of boundary image slices [px]
 
     Returns
     -------
@@ -53,12 +44,6 @@ def adjust_slice_coord(axis_iter, pad_rng, slice_shape, img_shape, slice_per_dim
     start = axis_iter * slice_shape[axis] - pad_rng
     stop = axis_iter * slice_shape[axis] + slice_shape[axis] + pad_rng
 
-    # flip coordinates
-    if flip:
-        start_tmp = start
-        start = img_shape[axis] - stop
-        stop = img_shape[axis] - start_tmp
-
     # adjust start coordinate
     if start < 0:
         start = 0
@@ -71,19 +56,33 @@ def adjust_slice_coord(axis_iter, pad_rng, slice_shape, img_shape, slice_per_dim
     else:
         axis_pad_array[1] = pad_rng
 
-    # handle image boundaries for very dense image parcellations
-    if min_edge > 0:
-        if axis_iter == slice_per_dim - 2:
-            if img_shape[axis] - (stop - axis_pad_array[1]) < min_edge:
-                stop = img_shape[axis]
-        elif axis_iter == slice_per_dim - 1:
-            if (stop - axis_pad_array[1]) - (start + axis_pad_array[0]) < min_edge:
-                start = None
-
     return start, stop, axis_pad_array
 
 
-def compute_slice_range(z, y, x, slice_shape, img_shape, slice_per_dim, pad_rng=0, flip=False, min_edge=-1):
+def compute_slice_padding(sigma_px, px_size, pad_factor=1.0):
+    """
+    Compute lateral image padding range
+    for coping with blob detection boundary artifacts.
+
+    Parameters
+    ----------
+    sigma_px: numpy.ndarray (shape=(2,), dtype=int)
+
+    px_size
+
+    pad_factor: float
+
+    Returns
+    -------
+    pad_rng: int
+        slice padding range [px]
+    """
+    pad_rng = int(np.ceil(2 * np.sqrt(3) * sigma_px[1] * pad_factor / px_size[-1]))
+
+    return pad_rng
+
+
+def compute_slice_range(z, y, x, slice_shape, img_shape, pad_rng=0):
     """
     Compute basic slice coordinates from microscopy volume image.
 
@@ -110,9 +109,6 @@ def compute_slice_range(z, y, x, slice_shape, img_shape, slice_per_dim, pad_rng=
     pad_rng: int
         slice padding range
 
-    flip: bool
-        if True, flip axes coordinates
-
     Returns
     -------
     rng: tuple
@@ -125,11 +121,11 @@ def compute_slice_range(z, y, x, slice_shape, img_shape, slice_per_dim, pad_rng=
     # and generate padding range matrix
     pad_mat = np.zeros(shape=(3, 2), dtype=np.uint8)
     z_start, z_stop, pad_mat[0, :] = \
-        adjust_slice_coord(z, pad_rng, slice_shape, img_shape, slice_per_dim[0], axis=0, flip=flip, min_edge=min_edge)
+        adjust_slice_coord(z, pad_rng, slice_shape, img_shape, axis=0)
     y_start, y_stop, pad_mat[1, :] = \
-        adjust_slice_coord(y, pad_rng, slice_shape, img_shape, slice_per_dim[1], axis=1, flip=flip, min_edge=min_edge)
+        adjust_slice_coord(y, pad_rng, slice_shape, img_shape, axis=1)
     x_start, x_stop, pad_mat[2, :] = \
-        adjust_slice_coord(x, pad_rng, slice_shape, img_shape, slice_per_dim[2], axis=2, flip=flip, min_edge=min_edge)
+        adjust_slice_coord(x, pad_rng, slice_shape, img_shape, axis=2)
 
     # generate index ranges
     z_rng = slice(z_start, z_stop, 1)
@@ -138,12 +134,169 @@ def compute_slice_range(z, y, x, slice_shape, img_shape, slice_per_dim, pad_rng=
     rng = np.index_exp[z_rng, y_rng, x_rng]
     for r in rng:
         if r.start is None:
-            return None, pad_mat
+            return None
 
     return rng, pad_mat
 
 
-def compute_slice_shape(img_shape, item_size, px_size=None, max_size=100, pad_rng=0):
+def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, slice_size):
+    """
+    Slicing configuration for the parallel analysis of basic chunks of the input microscopy volume.
+
+    Parameters
+    ----------
+    sigma_px
+
+    img_shape: numpy.ndarray (shape=(3,), dtype=int)
+        total image shape [px]
+
+    item_size: int
+        image item size (in bytes)
+
+    px_size: numpy.ndarray (shape=(3,), dtype=float)
+        pixel size [μm]
+
+    batch_size: int
+        slice batch size
+
+    slice_size: float
+        maximum memory size (in megabytes) of the basic image slices
+        analyzed in parallel
+
+    Returns
+    -------
+    rng_in_lst: list
+        list of analyzed fiber channel slice ranges
+
+    rng_out_lst: list
+        list of output slice ranges
+
+    pad_mat_lst: list
+        list of slice padding ranges
+
+    border
+
+    in_slice_shape_um: numpy.ndarray (shape=(3,), dtype=float)
+        shape of the basic image slices analyzed iteratively [μm]
+
+    out_slice_shape
+
+    px_rsz_ratio
+
+    tot_slice_num: int
+        total number of analyzed image slices
+
+    batch_size: int
+        adjusted slice batch size
+    """
+    # compute input patch padding range (border artifacts suppression)
+    border = compute_slice_padding(sigma_px, px_size)
+
+    # shape of the image slices processed in parallel
+    slice_shape, slice_shape_um = \
+        compute_slice_shape(img_shape, item_size, slice_size, px_size=px_size, pad_rng=border)
+
+    # adjust output shapes according to the anisotropic pixel size correction
+    px_size_iso = px_size[0] * np.ones(shape=px_size.shape)
+    px_rsz_ratio = np.divide(px_size, px_size_iso)
+    out_img_shape = np.ceil(np.multiply(px_rsz_ratio, img_shape)).astype(int)
+    out_slice_shape = np.ceil(np.multiply(px_rsz_ratio, slice_shape)).astype(int)
+
+    # iteratively define the input/output 3D slice ranges
+    slice_per_dim = np.ceil(np.divide(img_shape, slice_shape)).astype(int)
+    slice_num = int(np.prod(slice_per_dim))
+
+    # initialize empty range lists
+    rng_in_lst = list()
+    rng_out_lst = list()
+    pad_mat_lst = list()
+    for z, y, x in product(range(slice_per_dim[0]), range(slice_per_dim[1]), range(slice_per_dim[2])):
+
+        # index ranges of analyzed neuron image slices (with padding)
+        rng_in, pad_mat = \
+            compute_slice_range(z, y, x, slice_shape, img_shape, pad_rng=border)
+        if rng_in is not None:
+            rng_in_lst.append(rng_in)
+            pad_mat_lst.append(pad_mat)
+
+            # output index ranges
+            rng_out, _ = \
+                compute_slice_range(z, y, x, out_slice_shape, out_img_shape)
+            rng_out_lst.append(rng_out)
+
+        # invalid image slice
+        else:
+            slice_num -= 1
+
+    # adjust slice batch size
+    if batch_size > slice_num:
+        batch_size = slice_num
+
+    return rng_in_lst, rng_out_lst, pad_mat_lst, slice_shape_um, px_rsz_ratio, slice_num, batch_size
+
+
+"""
+TODO: default mem_growth_factor value needs to be adjusted!
+"""
+
+
+def config_slice_batch(sigma_num, mem_growth_factor=18.4, mem_fudge_factor=1.0,
+                       min_slice_size_mb=-1, jobs_to_cores=0.8, max_ram_mb=None):
+    """
+    Compute size and number of the batches of basic microscopy image slices
+    analyzed in parallel.
+
+    Parameters
+    ----------
+    sigma_num: int
+        number of analyzed spatial scales
+
+    mem_growth_factor: float
+        empirical memory growth factor
+        of the blob detection stage
+
+    mem_fudge_factor: float
+        memory fudge factor
+
+    min_slice_size_mb: float
+        minimum slice size in [MB]
+
+    jobs_to_cores: float
+        max number of jobs relative to the available CPU cores
+        (default: 80%)
+
+    max_ram_mb: float
+        maximum RAM available to the blob detection stage [MB]
+
+    Returns
+    -------
+    slice_batch_size: int
+        slice batch size
+
+    slice_size_mb: float
+        memory size (in megabytes) of the basic image slices
+        fed to the Frangi filter
+    """
+    # maximum RAM not provided: use all
+    if max_ram_mb is None:
+        max_ram_mb = psutil.virtual_memory()[1] / 1e6
+
+    # number of logical cores
+    num_cpu = get_available_cores()
+
+    # initialize slice batch size
+    slice_batch_size = int(jobs_to_cores * num_cpu)
+
+    # get image slice size
+    slice_size_mb = get_slice_size(max_ram_mb, mem_growth_factor, mem_fudge_factor, slice_batch_size, sigma_num)
+    while slice_size_mb < min_slice_size_mb:
+        slice_batch_size -= 1
+        slice_size_mb = get_slice_size(max_ram_mb, mem_growth_factor, mem_fudge_factor, slice_batch_size, sigma_num)
+
+    return slice_batch_size, slice_size_mb
+
+
+def compute_slice_shape(img_shape, item_size, max_slice_size, px_size=None, pad_rng=0):
     """
     Compute basic image chunk shape depending on its maximum size (in bytes).
 
@@ -173,11 +326,8 @@ def compute_slice_shape(img_shape, item_size, px_size=None, max_size=100, pad_rn
         shape of the basic image slices analyzed in parallel [μm]
         (if px_size is provided)
     """
-    if len(img_shape) == 4:
-        item_size = item_size * 3
-
     slice_depth = img_shape[0]
-    slice_side = np.round(1024 * np.sqrt((max_size / (slice_depth * item_size))) - 2 * pad_rng)
+    slice_side = np.round(1024 * np.sqrt((max_slice_size / (slice_depth * item_size))) - 2 * pad_rng)
     slice_shape = np.array([slice_depth, slice_side, slice_side]).astype(int)
     slice_shape = np.min(np.stack((img_shape[:3], slice_shape)), axis=0)
 
@@ -188,142 +338,7 @@ def compute_slice_shape(img_shape, item_size, px_size=None, max_size=100, pad_rn
         return slice_shape
 
 
-def config_image_slicing(img_shape, item_size, px_size, batch_size, slice_size):
-    """
-    Slicing configuration for the parallel analysis of basic chunks of the input microscopy volume.
-
-    Parameters
-    ----------
-    image_shape: numpy.ndarray (shape=(3,), dtype=int)
-        total image shape [px]
-
-    item_size: int
-        image item size (in bytes)
-
-    px_size: numpy.ndarray (shape=(3,), dtype=float)
-        pixel size [μm]
-
-    px_size_iso: numpy.ndarray (shape=(3,), dtype=float)
-        adjusted isotropic pixel size [μm]
-
-    smooth_sigma: numpy.ndarray (shape=(3,), dtype=int)
-        3D standard deviation of low-pass Gaussian filter [px]
-        (resolution anisotropy correction)
-
-    scale_sigma: numpy.ndarray (or int)
-        spatial scales of interest [px]
-
-    batch_size: int
-        slice batch size
-
-    slice_size: float
-        maximum memory size (in megabytes) of the basic image slices
-        analyzed in parallel
-
-    Returns
-    -------
-    rng_in_lst: list
-        list of analyzed fiber channel slice ranges
-
-    pad_mat_lst: list
-        list of slice padding ranges
-
-    in_slice_shape_um: numpy.ndarray (shape=(3,), dtype=float)
-        shape of the basic image slices analyzed iteratively [μm]
-
-    tot_slice_num: int
-        total number of analyzed image slices
-
-    batch_size: int
-        adjusted slice batch size
-    """
-    # shape of processed TPFM slices
-    in_slice_shape, in_slice_shape_um = compute_slice_shape(img_shape, item_size,
-                                                            px_size=px_size, max_size=slice_size)
-
-    # iteratively define input/output slice 3D ranges
-    slice_per_dim = np.ceil(np.divide(img_shape, in_slice_shape)).astype(int)
-    tot_slice_num = int(np.prod(slice_per_dim))
-
-    # initialize empty range lists
-    rng_in_lst = list()
-    for z, y, x in product(range(slice_per_dim[0]), range(slice_per_dim[1]), range(slice_per_dim[2])):
-
-        # index ranges of analyzed fiber image slices (with padding)
-        rng_in, _ = \
-            compute_slice_range(z, y, x, in_slice_shape, img_shape, slice_per_dim)
-        if rng_in is not None:
-            rng_in_lst.append(rng_in)
-        else:
-            tot_slice_num -= 1
-
-    # adjust slice batch size
-    if batch_size > tot_slice_num:
-        batch_size = tot_slice_num
-
-    return rng_in_lst, in_slice_shape, in_slice_shape_um, tot_slice_num, batch_size
-
-
-def config_slice_batch(frangi_scales, mem_growth_factor=149.7, mem_fudge_factor=1.0,                                    # NOTE: default values need to be adjusted!
-                       min_slice_size_mb=-1, jobs_to_cores=0.8, max_ram_mb=None):
-    """
-    Compute size and number of the batches of basic microscopy image slices
-    analyzed in parallel.
-
-    Parameters
-    ----------
-    frangi_scales: list (dtype=float)
-        analyzed spatial scales in [μm]
-
-    mem_growth_factor: float
-        empirical memory growth factor
-        of the Frangi filtering stage
-
-    mem_fudge_factor: float
-        memory fudge factor
-
-    min_slice_size_mb: float
-        minimum slice size in [MB]
-
-    jobs_to_cores: float
-        max number of jobs relative to the available CPU cores
-        (default: 80%)
-
-    max_ram_mb: float
-        maximum RAM available to the Frangi filtering stage [MB]
-
-    Returns
-    -------
-    slice_batch_size: int
-        slice batch size
-
-    slice_size_mb: float
-        memory size (in megabytes) of the basic image slices
-        fed to the Frangi filter
-    """
-    # maximum RAM not provided: use all
-    if max_ram_mb is None:
-        max_ram_mb = psutil.virtual_memory()[1] / 1e6
-
-    # number of logical cores
-    num_cpu = get_available_cores()
-
-    # number of spatial scales
-    num_scales = len(frangi_scales)
-
-    # initialize slice batch size
-    slice_batch_size = int(jobs_to_cores * num_cpu // num_scales)
-
-    # get image slice size
-    slice_size_mb = get_slice_size(max_ram_mb, mem_growth_factor, mem_fudge_factor, slice_batch_size, num_scales)
-    while slice_size_mb < min_slice_size_mb:
-        slice_batch_size -= 1
-        slice_size_mb = get_slice_size(max_ram_mb, mem_growth_factor, mem_fudge_factor, slice_batch_size, num_scales)
-
-    return slice_batch_size, slice_size_mb
-
-
-def crop_slice(img_slice, rng, flipped=()):
+def crop_slice(img_slice, rng):
     """
     Shrink image slice at volume boundaries, for overall shape consistency.
 
@@ -335,9 +350,6 @@ def crop_slice(img_slice, rng, flipped=()):
     rng: tuple
         3D index range
 
-    flipped: tuple
-        flipped axes
-
     Returns
     -------
     cropped_slice: numpy.ndarray
@@ -347,26 +359,18 @@ def crop_slice(img_slice, rng, flipped=()):
     out_slice_shape = img_slice.shape
     crop_rng = np.zeros(shape=(3,), dtype=int)
     for s in range(3):
-        crop_rng[s] = out_slice_shape[s] - np.arange(rng[s].start, rng[s].stop, rng[s].step).size
+        rsz = np.arange(rng[s].start, rng[s].stop, rng[s].step).size
+        crop_rng[s] = out_slice_shape[s] - rsz
 
     # crop slice if required
-    if 0 in flipped:
-        cropped_slice = img_slice[crop_rng[0] or None:, ...]
-    else:
-        cropped_slice = img_slice[:-crop_rng[0] or None, ...]
-    if 1 in flipped:
-        cropped_slice = cropped_slice[:, crop_rng[1] or None:, ...]
-    else:
-        cropped_slice = cropped_slice[:, :-crop_rng[1] or None, ...]
-    if 2 in flipped:
-        cropped_slice = cropped_slice[:, :, crop_rng[2] or None:, ...]
-    else:
-        cropped_slice = cropped_slice[:, :, :-crop_rng[2] or None, ...]
+    cropped_slice = img_slice[:-crop_rng[0] or None, ...]
+    cropped_slice = cropped_slice[:, :-crop_rng[1] or None, :]
+    cropped_slice = cropped_slice[:, :, :-crop_rng[2] or None]
 
     return cropped_slice
 
 
-def get_slice_size(max_ram, mem_growth_factor, mem_fudge_factor, slice_batch_size, num_scales=1):
+def get_slice_size(max_ram, mem_growth_factor, mem_fudge_factor, slice_batch_size, sigma_num):
     """
     Compute the size of the basic microscopy image slices fed to the Frangi filtering stage.
 
@@ -385,8 +389,8 @@ def get_slice_size(max_ram, mem_growth_factor, mem_fudge_factor, slice_batch_siz
     slice_batch_size: int
         slice batch size
 
-    num_scales: int
-        number of spatial scales analyzed in parallel
+    sigma_num: int
+        number of spatial scales
 
     Returns
     -------
@@ -394,7 +398,7 @@ def get_slice_size(max_ram, mem_growth_factor, mem_fudge_factor, slice_batch_siz
         memory size (in megabytes) of the basic image slices
         fed to the pipeline stage
     """
-    slice_size = max_ram / (slice_batch_size * mem_growth_factor * mem_fudge_factor * num_scales)
+    slice_size = max_ram / (slice_batch_size * mem_growth_factor * mem_fudge_factor * sigma_num)
 
     return slice_size
 

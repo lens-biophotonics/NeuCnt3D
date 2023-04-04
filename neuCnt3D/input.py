@@ -12,7 +12,7 @@ import tempfile
 from os import path
 
 from neuCnt3D.output import create_save_dir
-from neuCnt3D.printing import color_text, print_image_shape
+from neuCnt3D.printing import color_text
 from neuCnt3D.utils import add_output_prefix, create_memory_map, get_item_bytes
 
 
@@ -35,30 +35,35 @@ def cli_parser():
     """
     # configure parser object
     cli_parser = argparse.ArgumentParser(
-        description='NeuCnt3D: An Unsupervised 3D Neuron Count Pipeline\n'
+        description='NeuCnt3D: An Unsupervised 3D Neuron Counting Tool\n'
                     'author:   Michele Sorelli (2023)\n\n',
         formatter_class=CustomFormatter)
     cli_parser.add_argument(dest='image_path',
                             help='path to input microscopy volume image\n'
                                  '* supported formats: .tif, .yml (ZetaStitcher stitch file)\n')
     cli_parser.add_argument('-m', '--method', default='log',
-                            help='blob detection approach')
+                            help='blob detection approach:\n'
+                                 u'log \u2023 Laplacian of Gaussian\n'
+                                 u'dog \u2023 Difference of Gaussian')
     cli_parser.add_argument('-o', '--overlap', type=float, default=33.0,
                             help='maximum blob overlap percentage [%%]')
     cli_parser.add_argument('-t', '--threshold', type=float, default=10.0,
-                            help='minimum percentage intensity of peaks in the filtered image [%%]')
-    cli_parser.add_argument('--min-diam', type=float, default=0,
-                            help='minimum soma diameter of interest [μm]')
-    cli_parser.add_argument('--max-diam', type=float, default=30,
-                            help='maximum soma diameter of interest [μm]')
-    cli_parser.add_argument('--stp-diam', type=float, default=5,
-                            help='diameter step size [μm]')
+                            help='minimum percentage intensity of peaks in the filtered image relative to maximum [%%]')
     cli_parser.add_argument('-j', '--jobs-prc', type=float, default=80.0,
                             help='maximum parallel jobs relative to the number of available CPU cores [%%]')
     cli_parser.add_argument('-r', '--ram', type=float, default=None,
-                            help='maximum RAM available [GB] (default: use all)')
+                            help='maximum RAM available [GB]: use all if None')
+    cli_parser.add_argument('-b', '--backend', default='threading',
+                            help='Joblib parallelization backend implementation '
+                            '(either loky, multiprocessing or threading)')
     cli_parser.add_argument('-v', '--view', action='store_true', default=False,
                             help='visualize detected blobs')
+    cli_parser.add_argument('--min-diam', type=float, default=10.0,
+                            help='minimum soma diameter of interest [μm]')
+    cli_parser.add_argument('--max-diam', type=float, default=40.0,
+                            help='maximum soma diameter of interest [μm]')
+    cli_parser.add_argument('--stp-diam', type=float, default=5.0,
+                            help='diameter step size [μm]')
     cli_parser.add_argument('--px-size-xy', type=float, default=0.878, help='lateral pixel size [μm]')
     cli_parser.add_argument('--px-size-z', type=float, default=1.0, help='longitudinal pixel size [μm]')
     cli_parser.add_argument('--ch-neuron', type=int, default=0, help='neuronal soma channel')
@@ -97,7 +102,7 @@ def get_image_file(cli_args, mosaic=False):
     return img_path, img_name, mosaic
 
 
-def get_image_info(img, px_size, ch_neuron, mosaic=False, ch_axis=None):
+def get_image_info(img, px_size, ch_neu, mosaic=False, ch_axis=None):
     """
     Get information on the input microscopy volume image.
 
@@ -133,12 +138,9 @@ def get_image_info(img, px_size, ch_neuron, mosaic=False, ch_axis=None):
     img_shape = np.asarray(img.shape)
     ndim = len(img_shape)
     if ndim == 4:
-        if mosaic:
-            ch_axis = 1
-        else:
-            ch_axis = -1
+        ch_axis = 1 if mosaic else -1
     elif ndim == 3:
-        ch_neuron = None
+        ch_neu = None
 
     # get info on microscopy volume image
     if ch_axis is not None:
@@ -146,7 +148,7 @@ def get_image_info(img, px_size, ch_neuron, mosaic=False, ch_axis=None):
     img_shape_um = np.multiply(img_shape, px_size)
     img_item_size = get_item_bytes(img)
 
-    return img_shape, img_shape_um, img_item_size, ch_neuron
+    return img_shape, img_shape_um, img_item_size, ch_neu
 
 
 def get_detection_config(cli_args, img_name):
@@ -181,6 +183,10 @@ def get_detection_config(cli_args, img_name):
     ch_neuron: int
         neuronal bodies channel
 
+    backend: str
+        supported parallelization backend implementations:
+        loky, multiprocessing or threading
+
     max_ram_mb: float
         maximum RAM available to the Frangi filtering stage [MB]
 
@@ -193,6 +199,7 @@ def get_detection_config(cli_args, img_name):
     """
     # pipeline configuration
     ch_neuron = cli_args.ch_neuron
+    backend = cli_args.backend
     max_ram = cli_args.ram
     max_ram_mb = None if max_ram is None else max_ram * 1000
     jobs_prc = cli_args.jobs_prc
@@ -204,14 +211,12 @@ def get_detection_config(cli_args, img_name):
     px_size_z = cli_args.px_size_z
     px_size_xy = cli_args.px_size_xy
     px_size = np.array([px_size_z, px_size_xy, px_size_xy])
-    px_size_max = np.max(px_size)
 
     # spatial scales of interest
     min_diam_um = cli_args.min_diam
     max_diam_um = cli_args.max_diam
     stp_diam_um = cli_args.stp_diam
-    num_sigma = len(np.arange(min_diam_um, max_diam_um, stp_diam_um)) - 1
-    sigma_px = np.array([min_diam_um, max_diam_um]) / (2 * np.sqrt(3) * px_size_max)
+    diam_um = (min_diam_um, max_diam_um, stp_diam_um)
 
     # other detection parameters
     overlap = 0.01 * cli_args.overlap
@@ -227,8 +232,8 @@ def get_detection_config(cli_args, img_name):
     # add configuration prefix to output filenames
     img_name = add_output_prefix(img_name, min_diam_um, max_diam_um, method)
 
-    return method, sigma_px, num_sigma, overlap, rel_thresh, px_size, \
-        z_min, z_max, ch_neuron, max_ram_mb, jobs_to_cores, img_name, view_blobs
+    return method, diam_um, overlap, rel_thresh, px_size, \
+        z_min, z_max, ch_neuron, backend, max_ram_mb, jobs_to_cores, img_name, view_blobs
 
 
 def load_microscopy_image(cli_args):
@@ -285,8 +290,5 @@ def load_microscopy_image(cli_args):
     # create image memory map
     mmap_path = path.join(tmp_dir, 'tmp_' + img_name + '.mmap')
     img = create_memory_map(mmap_path, img.shape, dtype=img.dtype, arr=img[:], mmap_mode='r')
-
-    # print microscopy image shape
-    print_image_shape(cli_args, img, mosaic)
 
     return img, mosaic, cli_args, save_dir, tmp_dir, img_name

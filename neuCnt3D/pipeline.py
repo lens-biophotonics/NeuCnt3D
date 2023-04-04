@@ -1,37 +1,31 @@
 from os import path
-from time import perf_counter
 
 import numpy as np
 from joblib import Parallel, delayed
-from neuCnt3D.detection import detect_soma
+from neuCnt3D.detection import (config_detection_scales, correct_blob_coord,
+                                detect_soma)
 from neuCnt3D.input import get_image_info
-from neuCnt3D.output import save_array
-from neuCnt3D.printing import print_analysis_info, print_analysis_time
+from neuCnt3D.preprocessing import correct_image_anisotropy
+from neuCnt3D.printing import print_analysis_info, print_results
 from neuCnt3D.slicing import (config_image_slicing, config_slice_batch,
                               crop_slice, slice_channel)
-from neuCnt3D.utils import convert_spatial_scales, create_memory_map
+from neuCnt3D.utils import create_memory_map, delete_tmp_dir
 
 
-def init_output_volume(img_shape, slice_shape, tmp_dir, img_name, z_min=0, z_max=None):
+def init_napari_volume(img_shape, px_rsz_ratio, tmp_dir, z_min=0, z_max=None):
     """
-    Initialize the output datasets of the Frangi filtering stage.
+    Initialize the memory-mapped image for the Napari viewer.
 
     Parameters
     ----------
     img_shape: numpy.ndarray (shape=(3,), dtype=int)
         volume image shape [px]
 
-    slice_shape: numpy.ndarray (shape=(3,), dtype=int)
-        shape of the basic image slices analyzed iteratively [px]
-
-    resize_ratio: numpy.ndarray (shape=(3,), dtype=float)
+    px_rsz_ratio: numpy.ndarray (shape=(3,), dtype=float)
         3D resize ratio
 
     tmp_dir: str
         temporary file directory
-
-    img_name: str
-        name of the input volume image
 
     z_min: int
         minimum output z-depth in [px]
@@ -41,31 +35,31 @@ def init_output_volume(img_shape, slice_shape, tmp_dir, img_name, z_min=0, z_max
 
     Returns
     -------
-    neuron_msk: NumPy memory-map object (shape=(Z,Y,X), dtype=uint8)
-        initialized neuron mask image
+    neu_img: NumPy memory-map object (shape=(Z,Y,X), dtype=uint8)
+        initialized neuron channel array
 
     z_sel: NumPy slice object
         selected z-depth range
     """
-    # shape copies
-    img_shape = img_shape.copy()
-    slice_shape = slice_shape.copy()
-
     # adapt output z-axis shape if required
-    if z_min != 0 or z_max is not None:
+    if not z_min == 0 or z_max is not None:
         if z_max is None:
-            z_max = slice_shape[0]
+            z_max = img_shape[0]
         img_shape[0] = z_max - z_min
     z_sel = slice(z_min, z_max, 1)
 
-    # neuron mask memory map
-    neuron_msk_path = path.join(tmp_dir, 'neuron_msk_' + img_name + '.mmap')
-    neuron_msk = create_memory_map(neuron_msk_path, img_shape, dtype='uint8')
+    # get resized output shape
+    out_shape = np.ceil(np.multiply(px_rsz_ratio, img_shape)).astype(int)
 
-    return neuron_msk, z_sel
+    # neuron channel memory map
+    neu_tmp_path = path.join(tmp_dir, 'tmp_neu_img.mmap')
+    neu_img = create_memory_map(neu_tmp_path, out_shape, dtype='uint8')
+
+    return neu_img, z_sel
 
 
-def neuron_analysis(img, rng_in, ch_neuron=0, dark=False, mosaic=False):
+def neuron_analysis(img, rng_in, rng_out, pad, method, sigma_px, sigma_num, overlap, rel_thresh, px_rsz_ratio,
+                    neu_img, z_sel, ch_neu=0, dark=False, mosaic=False):
     """
     Conduct a Frangi-based fiber orientation analysis on basic slices selected from the whole microscopy volume image.
 
@@ -83,27 +77,31 @@ def neuron_analysis(img, rng_in, ch_neuron=0, dark=False, mosaic=False):
     pad: numpy.ndarray (shape=(Z,Y,X))
         3D image padding range
 
-    smooth_sigma: numpy.ndarray (shape=(3,), dtype=int)
-        3D standard deviation of the low-pass Gaussian filter [px]
-        (applied to the XY plane)
+    method:
 
-    scales_px: numpy.ndarray (dtype=int)
-        spatial scales [px]
+    sigma_px: numpy.ndarray (shape=(2,), dtype=int)
+        minimum and maximum spatial scales [px]
+
+    sigma_num
+
+    overlap
+
+    rel_thresh
 
     px_rsz_ratio: numpy.ndarray (shape=(3,), dtype=float)
         3D image resize ratio
 
+    neu_img: NumPy memory map (shape=(Z,Y,X), dtype=uint8)
+        neuron channel image
+
     z_sel: NumPy slice object
         selected z-depth range
 
-    neuron_msk: NumPy memory map (shape=(Z,Y,X), dtype=uint8)
-        neuron mask image
-
-    ch_neuron: int
+    ch_neu: int
         neuronal bodies channel
 
     dark: bool
-        if True, enhance black 3D tubular structures
+        if True, enhance dark 3D blob-like structures
         (i.e., negative contrast polarity)
 
     mosaic: bool
@@ -114,13 +112,27 @@ def neuron_analysis(img, rng_in, ch_neuron=0, dark=False, mosaic=False):
     None
     """
     # slice neuron image
-    neuron_slice = slice_channel(img, rng_in, channel=ch_neuron, mosaic=mosaic)
+    neu_slice = slice_channel(img, rng_in, channel=ch_neu, mosaic=mosaic)
 
-    # skip background slice
-    if np.max(neuron_slice) != 0:
+    # skip background
+    if np.max(neu_slice) != 0:
 
-        # TODO!
-        blobs = detect_soma(neuron_slice, dark=dark)
+        # correct pixel size anisotropy (resize XY plane)
+        iso_neu_slice, iso_neu_slice_crop, rsz_pad, rsz_border = correct_image_anisotropy(neu_slice, px_rsz_ratio, pad)
+
+        # perform unsupervised neuron count analysis
+        blobs = detect_soma(iso_neu_slice, method=method, min_sigma=sigma_px[0], max_sigma=sigma_px[1],
+                            num_sigma=sigma_num, overlap=overlap, threshold_rel=rel_thresh,
+                            dark=dark, border=rsz_border)
+
+        # add slice offset to coordinates and select z-range
+        blobs = correct_blob_coord(blobs, rng_out, rsz_pad, z_sel)
+
+        # crop iso_neu_slice
+        iso_neu_slice_crop = crop_slice(iso_neu_slice_crop, rng_out)
+
+        # fill memory-mapped output array
+        neu_img[rng_out] = iso_neu_slice_crop[z_sel, ...].astype(np.uint8)
 
         return blobs
 
@@ -128,11 +140,12 @@ def neuron_analysis(img, rng_in, ch_neuron=0, dark=False, mosaic=False):
         return []
 
 
-def parallel_neuron_count_on_slices(img, px_size, save_dir, tmp_dir, img_name, sigma_um,
-                                    ch_neuron=0, dark=False, z_min=0, z_max=None, mosaic=False,
-                                    max_ram_mb=None, jobs_to_cores=0.8, backend='threading'):
+def parallel_neuron_detection_on_slices(img, px_size, method, diam_um, overlap, rel_thresh, tmp_dir,
+                                        ch_neu=0, z_min=0, z_max=None, mosaic=False, max_ram_mb=None, jobs_to_cores=0.8,
+                                        dark=False, backend='threading'):
     """
-    Perform unsupervised neuronal body enhancement and counting to basic TPFM image slices using parallel threads.
+    Perform unsupervised neuronal body enhancement and counting on batches of
+    basic microscopy image slices using parallel threads.
 
     Parameters
     ----------
@@ -142,31 +155,19 @@ def parallel_neuron_count_on_slices(img, px_size, save_dir, tmp_dir, img_name, s
     px_size: numpy.ndarray (shape=(3,), dtype=float)
         pixel size [μm]
 
-    px_size_iso: numpy.ndarray (shape=(3,), dtype=float)
-        adjusted isotropic pixel size [μm]
+    method
 
-    smooth_sigma: numpy.ndarray (shape=(3,), dtype=int)
-        3D standard deviation of the low-pass Gaussian filter [px]
-        (applied to the XY plane)
+    diam_um
 
-    save_dir: str
-        saving directory string path
+    overlap
+
+    rel_thresh
 
     tmp_dir: str
         temporary file directory
 
-    img_name: str
-        name of the input volume image
-
-    sigma_um: list (dtype=float)
-        spatial scales of interest in [μm]
-
-    ch_neuron: int
+    ch_neu: int
         neuronal bodies channel
-
-    dark: bool
-        if True, enhance black 3D tubular structures
-        (i.e., negative contrast polarity)
 
     z_min: int
         minimum output z-depth in [px]
@@ -184,6 +185,10 @@ def parallel_neuron_count_on_slices(img, px_size, save_dir, tmp_dir, img_name, s
         max number of jobs relative to the available CPU cores
         (default: 80%)
 
+    dark: bool
+        if True, enhance black 3D blob-like structures
+        (i.e., negative contrast polarity)
+
     backend: str
         backend module employed by joblib.Parallel
 
@@ -192,55 +197,39 @@ def parallel_neuron_count_on_slices(img, px_size, save_dir, tmp_dir, img_name, s
     None
     """
     # get info on the input volume image
-    img_shape, img_shape_um, img_item_size, ch_neuron = get_image_info(img, px_size, ch_neuron, mosaic=mosaic)
+    img_shape, img_shape_um, img_item_size, ch_neu = get_image_info(img, px_size, ch_neu, mosaic=mosaic)
+
+    # compute the scale range adopted by the blob detection stage
+    sigma_px, sigma_num = config_detection_scales(diam_um, px_size)
 
     # configure batch of basic image slices to be analyzed in parallel
-    batch_size, max_slice_size = config_slice_batch(sigma_um, max_ram_mb=max_ram_mb, jobs_to_cores=jobs_to_cores)
+    batch_size, max_slice_size = config_slice_batch(sigma_num, max_ram_mb=max_ram_mb, jobs_to_cores=jobs_to_cores)
 
     # configure the overall microscopy volume slicing
-    rng_in_lst, in_slice_shape, in_slice_shape_um, tot_slice_num, batch_size = \
-        config_image_slicing(img_shape, img_item_size, px_size, batch_size, slice_size=max_slice_size)
+    rng_in_lst, rng_out_lst, pad_mat_lst, slice_shape_um, px_rsz_ratio, slice_num, batch_size = \
+        config_image_slicing(sigma_px, img_shape, img_item_size, px_size, batch_size, max_slice_size)
+
+    # initialize resized neuron channel image
+    neu_img, z_sel = init_napari_volume(img_shape, px_rsz_ratio, tmp_dir, z_min=z_min, z_max=z_max)
 
     # print analysis configuration
-    print_analysis_info(sigma_um, img_shape_um, in_slice_shape_um, tot_slice_num, px_size, img_item_size)
+    print_analysis_info(method, diam_um, sigma_num, img_shape_um, slice_shape_um, slice_num, px_size, img_item_size)
 
     # parallel unsupervised neuron enhancement, segmentation and counting of microscopy image sub-volumes
-    start_time = perf_counter()
     with Parallel(n_jobs=batch_size, backend=backend, verbose=100, max_nbytes=None) as parallel:
         par_blobs = parallel(
             delayed(neuron_analysis)(
-                img, rng_in_lst[i], ch_neuron=ch_neuron, dark=dark, mosaic=mosaic) for i in range(tot_slice_num))
+                img, rng_in_lst[i], rng_out_lst[i], pad_mat_lst[i], method, sigma_px, sigma_num, overlap, rel_thresh,
+                px_rsz_ratio, neu_img, z_sel, ch_neu=ch_neu, dark=dark, mosaic=mosaic)
+            for i in range(slice_num))
 
     # concatenate parallel results
-    blobs = [item for sublist in par_blobs for item in sublist]
+    blobs = np.vstack(par_blobs)
 
-    # print analysis time
-    print_analysis_time(start_time)
+    # delete temporary folder
+    delete_tmp_dir(tmp_dir)
 
-    return blobs
+    # print results to terminal
+    print_results(blobs, img_shape)
 
-
-def save_output_volume(neuron_msk, px_size, save_dir, img_name):
-    """
-    Save the output arrays of the neuron analysis stage to TIF files.
-
-    Parameters
-    ----------
-    neuron_msk: NumPy memory map (shape=(Z,Y,X), dtype=uint8)
-        neuron mask image
-
-    px_size: numpy.ndarray (shape=(3,), dtype=float)
-        pixel size (Z,Y,X) [μm]
-
-    save_dir: str
-        saving directory string path
-
-    img_name: str
-        name of the input microscopy volume image
-
-    Returns
-    -------
-    None
-    """
-    # save neuron channel volumes to TIF
-    save_array('neuron_msk_' + img_name, save_dir, neuron_msk, px_size)
+    return blobs, neu_img
