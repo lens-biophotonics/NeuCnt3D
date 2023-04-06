@@ -61,12 +61,13 @@ def init_napari_volume(img_shape, px_rsz_ratio, tmp_dir, z_min=0, z_max=None):
 def neuron_analysis(img, rng_in, rng_out, pad, method, sigma_px, sigma_num, overlap, rel_thresh, px_rsz_ratio,
                     neu_img, z_sel, ch_neu=0, dark=False, mosaic=False):
     """
-    Conduct a Frangi-based fiber orientation analysis on basic slices selected from the whole microscopy volume image.
+    Conduct an unsupervised neuronal body enhancement and counting on a basic slice
+    selected from the whole microscopy volume image.
 
     Parameters
     ----------
     img: numpy.ndarray (shape=(Z,Y,X))
-        fiber fluorescence volume image
+        soma fluorescence volume image
 
     rng_in: NumPy slice object
         input image range
@@ -77,16 +78,21 @@ def neuron_analysis(img, rng_in, rng_out, pad, method, sigma_px, sigma_num, over
     pad: numpy.ndarray (shape=(Z,Y,X))
         3D image padding range
 
-    method:
+    method: str
+        blob detection approach
+        (Laplacian of Gaussian or Difference of Gaussian)
 
     sigma_px: numpy.ndarray (shape=(2,), dtype=int)
         minimum and maximum spatial scales [px]
 
-    sigma_num
+    sigma_num: int
+        number of spatial scales analyzed
 
-    overlap
+    overlap: float
+        maximum blob overlap percentage [%]
 
-    rel_thresh
+    rel_thresh: float
+        minimum percentage intensity of peaks in the filtered image relative to maximum [%]
 
     px_rsz_ratio: numpy.ndarray (shape=(3,), dtype=float)
         3D image resize ratio
@@ -101,7 +107,7 @@ def neuron_analysis(img, rng_in, rng_out, pad, method, sigma_px, sigma_num, over
         neuronal bodies channel
 
     dark: bool
-        if True, enhance dark 3D blob-like structures
+        if True, detect dark 3D blob-like structures
         (i.e., negative contrast polarity)
 
     mosaic: bool
@@ -109,7 +115,9 @@ def neuron_analysis(img, rng_in, rng_out, pad, method, sigma_px, sigma_num, over
 
     Returns
     -------
-    None
+    blobs: numpy.ndarray (shape=(N,4))
+        2D array with each row representing 3 coordinate values for a 3D image,
+        plus the best sigma of the Gaussian kernel which detected the blob
     """
     # slice neuron image
     neu_slice = slice_channel(img, rng_in, channel=ch_neu, mosaic=mosaic)
@@ -140,12 +148,13 @@ def neuron_analysis(img, rng_in, rng_out, pad, method, sigma_px, sigma_num, over
         return []
 
 
+# noinspection PyTupleAssignmentBalance
 def parallel_neuron_detection_on_slices(img, px_size, method, diam_um, overlap, rel_thresh, tmp_dir,
                                         ch_neu=0, z_min=0, z_max=None, mosaic=False, max_ram_mb=None, jobs_to_cores=0.8,
                                         dark=False, backend='threading'):
     """
     Perform unsupervised neuronal body enhancement and counting on batches of
-    basic microscopy image slices using parallel threads.
+    basic microscopy image slices using parallel processes or threads.
 
     Parameters
     ----------
@@ -155,13 +164,18 @@ def parallel_neuron_detection_on_slices(img, px_size, method, diam_um, overlap, 
     px_size: numpy.ndarray (shape=(3,), dtype=float)
         pixel size [μm]
 
-    method
+    method: str
+        blob detection approach
+        (Laplacian of Gaussian or Difference of Gaussian)
 
-    diam_um
+    diam_um: tuple
+        soma diameter (minimum, maximum, step size) [μm]
 
-    overlap
+    overlap: float
+        maximum blob overlap percentage [%]
 
-    rel_thresh
+    rel_thresh: float
+        minimum percentage intensity of peaks in the filtered image relative to maximum [%]
 
     tmp_dir: str
         temporary file directory
@@ -179,7 +193,7 @@ def parallel_neuron_detection_on_slices(img, px_size, method, diam_um, overlap, 
         must be True for tiled reconstructions aligned using ZetaStitcher
 
     max_ram_mb: float
-        maximum RAM available to the Frangi filtering stage [MB]
+        maximum RAM available to the soma detection algorithm
 
     jobs_to_cores: float
         max number of jobs relative to the available CPU cores
@@ -194,7 +208,12 @@ def parallel_neuron_detection_on_slices(img, px_size, method, diam_um, overlap, 
 
     Returns
     -------
-    None
+    blobs: numpy.ndarray (shape=(N,4))
+        2D array with each row representing 3 coordinate values for a 3D image,
+        plus the best sigma of the Gaussian kernel which detected the blob
+
+    neu_img: NumPy memory-map object (shape=(Z,Y,X), dtype=uint8)
+        resized soma channel image with isotropic pixel size
     """
     # get info on the input volume image
     img_shape, img_shape_um, img_item_size, ch_neu = get_image_info(img, px_size, ch_neu, mosaic=mosaic)

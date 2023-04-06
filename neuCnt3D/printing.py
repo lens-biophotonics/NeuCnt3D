@@ -44,8 +44,15 @@ def print_analysis_info(method, diam_um, sigma_num, img_shape_um, slice_shape_um
 
     Parameters
     ----------
-    scales_um: list (dtype=float)
-        analyzed spatial scales [μm]
+    method: str
+        blob detection approach
+        (Laplacian of Gaussian or Difference of Gaussian)
+
+    diam_um: tuple
+        soma diameter (minimum, maximum, step size) [μm]
+
+    sigma_num: int
+        number of spatial scales
 
     img_shape_um: numpy.ndarray (shape=(3,), dtype=float)
         volume image shape [μm]
@@ -53,7 +60,7 @@ def print_analysis_info(method, diam_um, sigma_num, img_shape_um, slice_shape_um
     slice_shape_um: numpy.ndarray (shape=(3,), dtype=float)
         shape of the analyzed image slices [μm]
 
-    tot_slice_num: int
+    slice_num: int
         total number of analyzed image slices
 
     px_size: numpy.ndarray (shape=(3,), dtype=float)
@@ -68,7 +75,7 @@ def print_analysis_info(method, diam_um, sigma_num, img_shape_um, slice_shape_um
     """
     print(color_text(0, 191, 255, "\n\n3D Neuronal Body Localization"))
 
-    print_scale_info(method, diam_um, sigma_num)
+    print_blob_info(method, diam_um, sigma_num)
 
     print_slicing_info(img_shape_um, slice_shape_um, slice_num, px_size, img_item_size)
 
@@ -88,17 +95,21 @@ def print_pipeline_heading():
     print(color_text(0, 250, 154, "\n3D Unsupervised Neuron Segmentation and Counting"))
 
 
-def print_scale_info(method, diam_um, sigma_num):
+def print_blob_info(method, diam_um, sigma_num):
     """
-    Description
+    Print blob detection information.
 
     Parameters
     ----------
-    method
+    method: str
+        blob detection approach
+        (Laplacian of Gaussian or Difference of Gaussian)
 
-    diam_um
+    diam_um: tuple
+        soma diameter (minimum, maximum, step size) [μm]
 
-    sigma_num
+    sigma_num: int
+        number of spatial scales
 
     Returns
     -------
@@ -117,13 +128,16 @@ def print_scale_info(method, diam_um, sigma_num):
 
 def print_results(blobs, img_shape):
     """
-    Description
+    Print soma detection results.
 
     Parameters
     ----------
-    blobs
+    blobs: numpy.ndarray (shape=(N,4))
+        2D array with each row representing 3 coordinate values for a 3D image,
+        plus the best sigma of the Gaussian kernel which detected the blob
 
-    img_shape
+    img_shape: numpy.ndarray (shape=(3,), dtype=float)
+        volume image shape [μm]
 
     Returns
     -------
@@ -146,7 +160,7 @@ def print_slicing_info(img_shape_um, slice_shape_um, slice_num, px_size, img_ite
     slice_shape_um: numpy.ndarray (shape=(3,), dtype=float)
         shape of the analyzed image slices [μm]
 
-    tot_slice_num: int
+    slice_num: int
         total number of analyzed image slices
 
     px_size: numpy.ndarray (shape=(3,), dtype=float)

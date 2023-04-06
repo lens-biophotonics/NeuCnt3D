@@ -19,7 +19,7 @@ def create_save_dir(img_path, img_name):
         path to input microscopy volume image
 
     img_name: str
-        name of the input volume image
+        name of the input microscopy volume image
 
     Returns
     -------
@@ -42,14 +42,26 @@ def create_save_dir(img_path, img_name):
 
 def save_soma(blobs, px_size, save_dir, save_fname):
     """
-    Description
+    Save detected soma coordinates and radii to log file.
 
     Parameters
     ----------
+    blobs: numpy.ndarray (shape=(N,4))
+        2D array with each row representing 3 coordinate values for a 3D image,
+        plus the best sigma of the Gaussian kernel which detected the blob
+
+    px_size: numpy.ndarray (shape=(3,), dtype=float)
+        pixel size [μm]
+
+    save_dir: str
+        saving directory
+
+    save_fname str
+        saved filename
 
     Returns
     -------
-
+    None
     """
     # convert to [μm]
     blobs = blobs * px_size[0]
@@ -61,14 +73,27 @@ def save_soma(blobs, px_size, save_dir, save_fname):
 
 def view_soma(blobs, neu_img, method, edge_width=0.2):
     """
-    Description
+    Display the detected soma in the Napari viewer.
 
     Parameters
     ----------
+    blobs: numpy.ndarray (shape=(N,4))
+        2D array with each row representing 3 coordinate values for a 3D image,
+        plus the best sigma of the Gaussian kernel which detected the blob
+
+    neu_img: NumPy memory-map object (shape=(Z,Y,X), dtype=uint8)
+        soma channel image
+
+    method: str
+        blob detection approach
+        (Laplacian of Gaussian or Difference of Gaussian)
+
+    edge_width: float
+        width of the blob symbol edge
 
     Returns
     -------
-
+    None
     """
     if method == 'log':
         edge_color = 'lime'

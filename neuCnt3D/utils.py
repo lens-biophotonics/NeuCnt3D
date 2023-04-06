@@ -92,7 +92,7 @@ def get_item_bytes(data):
 
     Parameters
     ----------
-    data: numpy.ndarray or HDF5 dataset
+    data: numpy.ndarray
         input data
 
     Returns
@@ -119,13 +119,18 @@ def add_output_prefix(img_name, min_diam_um, max_diam_um, method):
 
     Parameters
     ----------
-    img_name
+    img_name: str
+        name of the input microscopy volume image
 
-    min_diam_um
+    min_diam_um: float
+        minimum soma diameter of interest [μm]
 
-    max_diam_um
+    max_diam_um: float
+        maximum soma diameter of interest [μm]
 
-    method
+    method: str
+        blob detection approach
+        (Laplacian of Gaussian or Difference of Gaussian)
 
     Returns
     -------

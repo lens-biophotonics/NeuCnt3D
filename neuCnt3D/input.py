@@ -66,7 +66,7 @@ def cli_parser():
                             help='diameter step size [μm]')
     cli_parser.add_argument('--px-size-xy', type=float, default=0.878, help='lateral pixel size [μm]')
     cli_parser.add_argument('--px-size-z', type=float, default=1.0, help='longitudinal pixel size [μm]')
-    cli_parser.add_argument('--ch-neuron', type=int, default=0, help='neuronal soma channel')
+    cli_parser.add_argument('--ch-neuron', type=int, default=0, help='neuronal soma channel (RGB image)')
     cli_parser.add_argument('--z-min', type=float, default=0, help='forced minimum output z-depth [μm]')
     cli_parser.add_argument('--z-max', type=float, default=None, help='forced maximum output z-depth [μm]')
 
@@ -76,26 +76,36 @@ def cli_parser():
     return cli_args
 
 
-def get_image_file(cli_args, mosaic=False):
+def get_image_file(cli_args):
     """
     Description
 
     Parameters
     ----------
+    cli_args: see ArgumentParser.parse_args
+        populated namespace of command line arguments
 
     Returns
     -------
+    img_path: str
+        path to the input microscopy volume image
 
+    img_name: str
+        name of the input microscopy volume image
+
+    mosaic: bool
+        True for tiled reconstructions aligned using ZetaStitcher
     """
     img_path = cli_args.image_path
     img_fname = path.basename(img_path)
     split_name = img_fname.split('.')
-    img_name = img_fname.replace('.' + split_name[-1], '')
 
     if len(split_name) == 1:
         raise ValueError('Format must be specified for input volume images!')
     else:
+        mosaic = False
         img_fmt = split_name[-1]
+        img_name = img_fname.replace('.' + split_name[-1], '')
         if img_fmt == 'yml':
             mosaic = True
 
@@ -115,7 +125,7 @@ def get_image_info(img, px_size, ch_neu, mosaic=False, ch_axis=None):
         pixel size [μm]
 
     ch_neuron: int
-        neuronal bodies channel
+        neuronal soma channel
 
     mosaic: bool
         True for tiled reconstructions aligned using ZetaStitcher
@@ -153,7 +163,7 @@ def get_image_info(img, px_size, ch_neu, mosaic=False, ch_axis=None):
 
 def get_detection_config(cli_args, img_name):
     """
-    Retrieve the NeuCnt3D pipeline configuration.
+    Retrieve the NeuCnt3D tool configuration.
 
     Parameters
     ----------
@@ -161,15 +171,22 @@ def get_detection_config(cli_args, img_name):
         populated namespace of command line arguments
 
     img_name: str
-        name of the input volume image
+        name of the input microscopy volume image
 
     Returns
     -------
-    min_sigma_px
+    method: str
+        blob detection approach
+        (Laplacian of Gaussian or Difference of Gaussian)
 
-    max_sigma_px
+    diam_um: tuple
+        soma diameter (minimum, maximum, step size) [μm]
 
-    num_sigma
+    overlap: float
+        maximum blob overlap percentage [%]
+
+    rel_thresh: float
+        minimum percentage intensity of peaks in the filtered image relative to maximum [%]
 
     px_size: numpy.ndarray (shape=(3,), dtype=float)
         pixel size [μm]
@@ -181,7 +198,7 @@ def get_detection_config(cli_args, img_name):
         maximum output z-depth [px]
 
     ch_neuron: int
-        neuronal bodies channel
+        neuronal bodies channel (RGB image)
 
     backend: str
         supported parallelization backend implementations:
@@ -248,7 +265,7 @@ def load_microscopy_image(cli_args):
     Returns
     -------
     img: NumPy memory map
-        microscopy volume image or dataset of fiber orientation vectors
+        microscopy volume image
 
     mosaic: bool
         True for tiled microscopy reconstructions aligned using ZetaStitcher

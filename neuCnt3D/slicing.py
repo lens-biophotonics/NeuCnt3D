@@ -15,7 +15,7 @@ def adjust_slice_coord(axis_iter, pad_rng, slice_shape, img_shape, axis):
         iteration counter along axis (see pipeline.iterate_frangi_on_slices)
 
     pad_rng: int
-        patch padding range
+        patch padding range [px]
 
     slice_shape: numpy.ndarray (shape=(3,), dtype=int)
         shape of the basic image slices analyzed iteratively [px]
@@ -67,10 +67,14 @@ def compute_slice_padding(sigma_px, px_size, pad_factor=1.0):
     Parameters
     ----------
     sigma_px: numpy.ndarray (shape=(2,), dtype=int)
+        minimum and maximum spatial scales [px]
 
-    px_size
+    px_size: numpy.ndarray (shape=(3,), dtype=float)
+        pixel size [μm]
 
     pad_factor: float
+        soma diameter multiplication factor
+        (pad_rng = diameter * pad_factor)
 
     Returns
     -------
@@ -145,7 +149,8 @@ def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, sl
 
     Parameters
     ----------
-    sigma_px
+    sigma_px: numpy.ndarray (shape=(2,), dtype=int)
+        minimum and maximum spatial scales [px]
 
     img_shape: numpy.ndarray (shape=(3,), dtype=int)
         total image shape [px]
@@ -174,16 +179,13 @@ def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, sl
     pad_mat_lst: list
         list of slice padding ranges
 
-    border
-
-    in_slice_shape_um: numpy.ndarray (shape=(3,), dtype=float)
+    slice_shape_um: numpy.ndarray (shape=(3,), dtype=float)
         shape of the basic image slices analyzed iteratively [μm]
 
-    out_slice_shape
+    px_rsz_ratio: numpy.ndarray (shape=(3,), dtype=float)
+        3D image resize ratio
 
-    px_rsz_ratio
-
-    tot_slice_num: int
+    slice_num: int
         total number of analyzed image slices
 
     batch_size: int
@@ -235,11 +237,6 @@ def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, sl
     return rng_in_lst, rng_out_lst, pad_mat_lst, slice_shape_um, px_rsz_ratio, slice_num, batch_size
 
 
-"""
-TODO: default mem_growth_factor value needs to be adjusted!
-"""
-
-
 def config_slice_batch(sigma_num, mem_growth_factor=18.4, mem_fudge_factor=1.0,
                        min_slice_size_mb=-1, jobs_to_cores=0.8, max_ram_mb=None):
     """
@@ -249,7 +246,7 @@ def config_slice_batch(sigma_num, mem_growth_factor=18.4, mem_fudge_factor=1.0,
     Parameters
     ----------
     sigma_num: int
-        number of analyzed spatial scales
+        number of spatial scales
 
     mem_growth_factor: float
         empirical memory growth factor
@@ -308,11 +305,11 @@ def compute_slice_shape(img_shape, item_size, max_slice_size, px_size=None, pad_
     item_size: int
         image item size (in bytes)
 
-    px_size: numpy.ndarray (shape=(3,), dtype=float)
-        pixel size [μm]
-
     max_slice_size: float
         maximum memory size (in bytes) of the basic slices analyzed iteratively
+
+    px_size: numpy.ndarray (shape=(3,), dtype=float)
+        pixel size [μm]
 
     pad_rng: int
         slice padding range

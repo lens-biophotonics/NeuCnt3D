@@ -15,14 +15,14 @@ def correct_image_anisotropy(img, px_rsz_ratio, pad, anti_aliasing=True, preserv
     px_rsz_ratio: numpy.ndarray (shape=(3,), dtype=float)
         pixel resize ratio
 
+    pad: numpy.ndarray (shape=(3,2), dtype=int)
+        padding range array
+
     anti_aliasing: bool
         apply an anti-aliasing filter when downsampling the XY plane
 
     preserve_range: bool
         keep the original intensity range
-
-    pad: numpy.ndarray (shape=(3,2), dtype=int)
-        padding range array
 
     Returns
     -------
@@ -31,6 +31,13 @@ def correct_image_anisotropy(img, px_rsz_ratio, pad, anti_aliasing=True, preserv
 
     iso_crop_img: numpy.ndarray (shape=(Z,Y,X))
         isotropic microscopy volume image
+
+    rsz_pad: numpy.ndarray (shape=(3,2), dtype=int)
+        resized padding range array
+
+    rsz_border_int: tuple
+        each element of the tuple will exclude peaks from within exclude_border-pixels
+        of the border of the image along that dimension
     """
     # lateral downsampling
     iso_shape = np.ceil(np.multiply(np.asarray(img.shape), px_rsz_ratio)).astype(int)

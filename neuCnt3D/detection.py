@@ -5,20 +5,24 @@ from skimage.feature import blob_dog, blob_log
 
 def config_detection_scales(diam_um, px_size):
     """
-    Description
+    Compute the minimum and maximum standard deviation
+    for the Gaussian kernel used by the blob detection algorithm.
 
     Parameters
     ----------
-    diam_um
+    diam_um: tuple
+        soma diameter (minimum, maximum, step size) [μm]
 
-    px_size
+    px_size: numpy.ndarray (shape=(3,), dtype=float)
+        pixel size [μm]
 
     Returns
     -------
-    sigma_px
+    sigma_px: numpy.ndarray (shape=(2,), dtype=int)
+        minimum and maximum spatial scales [px]
 
-    sigma_num
-
+    sigma_num: int
+        number of spatial scales analyzed
     """
     min_diam_um, max_diam_um, stp_diam_um = diam_um
     sigma_num = len(np.arange(min_diam_um, max_diam_um, stp_diam_um))
@@ -33,20 +37,27 @@ def config_detection_scales(diam_um, px_size):
 
 def correct_blob_coord(blobs, slice_rng, rsz_pad, z_sel):
     """
-    Description
+    Correct the original soma coordinates with respect to
+    the relative image slice position and delete detections
+    out of the requested depth range.
 
     Parameters
     ----------
-    blobs
+    blobs: numpy.ndarray (shape=(N,4))
+        2D array with each row representing 3 coordinate values for a 3D image,
+        plus the best sigma of the Gaussian kernel which detected the blob
 
-    slice_rng
+    slice_rng: NumPy slice object
+        image slice index range
 
-    z_sel
+    z_sel: NumPy slice object
+        selected z-depth range
 
     Returns
     -------
-    blobs
-
+    blobs: numpy.ndarray (shape=(N,4))
+        2D array with each row representing 3 coordinate values for a 3D image,
+        plus the best sigma of the Gaussian kernel which detected the blob
     """
     # correct X, Y coordinates wrt x0, y0 offset
     blobs[:, 1] += slice_rng[1].start - rsz_pad[1, 0]
@@ -69,31 +80,48 @@ def detect_soma(img, min_sigma=1, max_sigma=50, num_sigma=10, sigma_ratio=1.6, m
 
     Parameters
     ----------
-    img
+    img: numpy.ndarray (shape=(Z,Y,X))
+        soma fluorescence volume image
 
-    min_sigma
+    min_sigma: int
+        minimum spatial scale [px]
 
-    max_sigma
+    max_sigma: int
+        maximum spatial scale [px]
 
-    num_sigma
+    num_sigma: int
+        number of spatial scales analyzed
 
-    sigma_ratio
+    sigma_ratio: float
+        the ratio between the standard deviation of Gaussian kernels
+        used for computing the Difference of Gaussians
 
-    method
+    method: str
+        blob detection approach
+        (Laplacian of Gaussian or Difference of Gaussian)
 
-    threshold
+    threshold: float
+        minimum intensity of peaks in the filtered image
 
-    overlap
+    overlap: float
+        maximum blob overlap percentage [%]
 
-    threshold_rel
+    threshold_rel: float
+        minimum percentage intensity of peaks in the filtered image relative to maximum [%]
 
-    border
+    border: tuple
+        each element of the tuple will exclude peaks from within exclude_border-pixels
+        of the border of the image along that dimension
 
-    dark
+    dark: bool
+        if True, detect dark 3D blob-like structures
+        (i.e., negative contrast polarity)
 
     Returns
     -------
-    blobs
+    blobs: numpy.ndarray (shape=(N,4))
+        2D array with each row representing 3 coordinate values for a 3D image,
+        plus the best sigma of the Gaussian kernel which detected the blob
 
     NOTE:
     modify skimage.feature.blob (line 205)
