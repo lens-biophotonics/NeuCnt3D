@@ -50,6 +50,9 @@ def correct_blob_coord(blobs, slice_rng, rsz_pad, z_sel):
     slice_rng: NumPy slice object
         image slice index range
 
+    rsz_pad: numpy.ndarray (shape=(3,2), dtype=int)
+        resized padding range array
+
     z_sel: NumPy slice object
         selected z-depth range
 
@@ -73,7 +76,7 @@ def correct_blob_coord(blobs, slice_rng, rsz_pad, z_sel):
     return blobs
 
 
-def detect_soma(img, min_sigma=1, max_sigma=50, num_sigma=10, sigma_ratio=1.6, method='log',
+def detect_soma(img, min_sigma=1, max_sigma=50, num_sigma=10, sigma_ratio=1.6, approach='log',
                 threshold=None, overlap=0.5, threshold_rel=None, border=0, dark=False):
     """
     Apply 3D soma segmentation filter to input volume image.
@@ -94,9 +97,9 @@ def detect_soma(img, min_sigma=1, max_sigma=50, num_sigma=10, sigma_ratio=1.6, m
 
     sigma_ratio: float
         the ratio between the standard deviation of Gaussian kernels
-        used for computing the Difference of Gaussians
+        used for computing the Difference of Gaussian
 
-    method: str
+    approach: str
         blob detection approach
         (Laplacian of Gaussian or Difference of Gaussian)
 
@@ -134,14 +137,43 @@ def detect_soma(img, min_sigma=1, max_sigma=50, num_sigma=10, sigma_ratio=1.6, m
         img = np.invert(img)
 
     # detect blobs
-    if method == 'log':
+    if approach == 'log':
         blobs = blob_log(img, min_sigma=min_sigma, max_sigma=max_sigma, num_sigma=num_sigma, threshold=threshold,
                          overlap=overlap, threshold_rel=threshold_rel, exclude_border=border)
-    elif method == 'dog':
+    elif approach == 'dog':
         blobs = blob_dog(img, min_sigma=min_sigma, max_sigma=max_sigma, sigma_ratio=sigma_ratio, threshold=threshold,
                          overlap=overlap, threshold_rel=threshold_rel, exclude_border=border)
 
     # estimate blob radii
     blobs[..., 3] = blobs[..., 3] * np.sqrt(3)
+
+    return blobs
+
+
+def merge_parallel_blobs(par_blobs, inv=-1):
+    """
+    Merge blobs detected by parallel processes or threads,
+    filtering out invalid background slices.
+
+    Parameters
+    ----------
+    par_blobs: list of numpy.ndarray
+        list of blob coordinates extracted in parallel
+        from separate basic image slices
+
+    inv: int or float
+        invalid value assigned to skipped
+        background slices
+
+    Returns
+    -------
+    blobs: numpy.ndarray (shape=(N,4))
+        2D array with each row representing 3 coordinate values for a 3D image,
+        plus the best sigma of the Gaussian kernel which detected the blob
+
+    """
+    inv = inv * np.ones((4,))
+    par_blobs = [x for x in par_blobs if not (x == inv).all()]
+    blobs = np.vstack(par_blobs)
 
     return blobs

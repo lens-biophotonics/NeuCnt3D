@@ -1,4 +1,5 @@
 import argparse
+import tempfile
 
 import numpy as np
 import tifffile as tiff
@@ -8,7 +9,6 @@ try:
 except ImportError:
     pass
 
-import tempfile
 from os import path
 
 from neuCnt3D.output import create_save_dir
@@ -20,13 +20,9 @@ class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHe
     pass
 
 
-def cli_parser():
+def get_cli_parser():
     """
     Parse command line arguments.
-
-    Parameters
-    ----------
-    None
 
     Returns
     -------
@@ -41,7 +37,7 @@ def cli_parser():
     cli_parser.add_argument(dest='image_path',
                             help='path to input microscopy volume image\n'
                                  '* supported formats: .tif, .yml (ZetaStitcher stitch file)\n')
-    cli_parser.add_argument('-m', '--method', default='log',
+    cli_parser.add_argument('-a', '--approach', default='log',
                             help='blob detection approach:\n'
                                  u'log \u2023 Laplacian of Gaussian\n'
                                  u'dog \u2023 Difference of Gaussian')
@@ -58,6 +54,8 @@ def cli_parser():
                             '(either loky, multiprocessing or threading)')
     cli_parser.add_argument('-v', '--view', action='store_true', default=False,
                             help='visualize detected blobs')
+    cli_parser.add_argument('-m', '--mmap', action='store_true', default=False,
+                            help='create a memory-mapped array of the microscopy volume image')
     cli_parser.add_argument('--min-diam', type=float, default=10.0,
                             help='minimum soma diameter of interest [μm]')
     cli_parser.add_argument('--max-diam', type=float, default=40.0,
@@ -78,7 +76,7 @@ def cli_parser():
 
 def get_image_file(cli_args):
     """
-    Description
+    Get microscopy image file path and format.
 
     Parameters
     ----------
@@ -95,21 +93,27 @@ def get_image_file(cli_args):
 
     mosaic: bool
         True for tiled reconstructions aligned using ZetaStitcher
+
+    in_mmap: bool
+        create a memory-mapped array of the microscopy volume image,
+        increasing the parallel processing performance
+        (the image will be preliminarily loaded to RAM)
     """
+    in_mmap = cli_args.mmap
     img_path = cli_args.image_path
-    img_fname = path.basename(img_path)
-    split_name = img_fname.split('.')
+    img_name = path.basename(img_path)
+    split_name = img_name.split('.')
 
     if len(split_name) == 1:
         raise ValueError('Format must be specified for input volume images!')
     else:
         mosaic = False
         img_fmt = split_name[-1]
-        img_name = img_fname.replace('.' + split_name[-1], '')
+        img_name = img_name.replace('.' + split_name[-1], '')
         if img_fmt == 'yml':
             mosaic = True
 
-    return img_path, img_name, mosaic
+    return img_path, img_name, mosaic, in_mmap
 
 
 def get_image_info(img, px_size, ch_neu, mosaic=False, ch_axis=None):
@@ -124,7 +128,7 @@ def get_image_info(img, px_size, ch_neu, mosaic=False, ch_axis=None):
     px_size: numpy.ndarray (shape=(3,), dtype=float)
         pixel size [μm]
 
-    ch_neuron: int
+    ch_neu: int
         neuronal soma channel
 
     mosaic: bool
@@ -175,7 +179,7 @@ def get_detection_config(cli_args, img_name):
 
     Returns
     -------
-    method: str
+    approach: str
         blob detection approach
         (Laplacian of Gaussian or Difference of Gaussian)
 
@@ -205,7 +209,7 @@ def get_detection_config(cli_args, img_name):
         loky, multiprocessing or threading
 
     max_ram_mb: float
-        maximum RAM available to the Frangi filtering stage [MB]
+        maximum RAM available to the blob detection stage [MB]
 
     jobs_to_cores: float
         max number of jobs relative to the available CPU cores
@@ -221,7 +225,7 @@ def get_detection_config(cli_args, img_name):
     max_ram_mb = None if max_ram is None else max_ram * 1000
     jobs_prc = cli_args.jobs_prc
     jobs_to_cores = 1 if jobs_prc >= 100 else 0.01 * jobs_prc
-    method = cli_args.method
+    approach = cli_args.approach
     view_blobs = cli_args.view
 
     # image pixel size
@@ -247,9 +251,9 @@ def get_detection_config(cli_args, img_name):
         z_max = int(np.ceil(z_max / px_size[0]))
 
     # add configuration prefix to output filenames
-    img_name = add_output_prefix(img_name, min_diam_um, max_diam_um, method)
+    img_name = add_output_prefix(img_name, min_diam_um, max_diam_um, approach)
 
-    return method, diam_um, overlap, rel_thresh, px_size, \
+    return approach, diam_um, overlap, rel_thresh, px_size, \
         z_min, z_max, ch_neuron, backend, max_ram_mb, jobs_to_cores, img_name, view_blobs
 
 
@@ -276,7 +280,7 @@ def load_microscopy_image(cli_args):
     save_dir: str
         saving directory
 
-    tmp_dir: str
+    tmp: str
         temporary file directory
 
     img_name: str
@@ -286,7 +290,7 @@ def load_microscopy_image(cli_args):
     print(color_text(0, 191, 255, "\nMicroscopy Volume Image Import\n"))
 
     # retrieve microscopy image path and name
-    img_path, img_name, mosaic = get_image_file(cli_args)
+    img_path, img_name, mosaic, in_mmap = get_image_file(cli_args)
 
     # load microscopy tiled reconstruction (aligned using ZetaStitcher)
     if mosaic:
@@ -298,14 +302,13 @@ def load_microscopy_image(cli_args):
         print("Loading " + img_name + " z-stack...")
         img = tiff.imread(img_path)
 
+    # create image memory map
+    tmp_dir = None
+    if in_mmap:
+        tmp_dir = tempfile.mkdtemp()
+        img = create_memory_map(img.shape, dtype=img.dtype, name=img_name, tmp=tmp_dir, arr=img[:], mmap_mode='r')
+
     # create saving directory
     save_dir = create_save_dir(img_path, img_name)
-
-    # create temporary file directory
-    tmp_dir = tempfile.mkdtemp()
-
-    # create image memory map
-    mmap_path = path.join(tmp_dir, 'tmp_' + img_name + '.mmap')
-    img = create_memory_map(mmap_path, img.shape, dtype=img.dtype, arr=img[:], mmap_mode='r')
 
     return img, mosaic, cli_args, save_dir, tmp_dir, img_name

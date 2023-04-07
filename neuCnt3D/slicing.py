@@ -12,7 +12,7 @@ def adjust_slice_coord(axis_iter, pad_rng, slice_shape, img_shape, axis):
     Parameters
     ----------
     axis_iter: int
-        iteration counter along axis (see pipeline.iterate_frangi_on_slices)
+        iteration counter along axis
 
     pad_rng: int
         patch padding range [px]
@@ -107,9 +107,6 @@ def compute_slice_range(z, y, x, slice_shape, img_shape, pad_rng=0):
     img_shape: numpy.ndarray (shape=(3,), dtype=int)
         total image shape [px]
 
-    slice_per_dim: numpy.ndarray (shape=(3,), dtype=int)
-        number of image slices along each separate axis
-
     pad_rng: int
         slice padding range
 
@@ -191,7 +188,7 @@ def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, sl
     batch_size: int
         adjusted slice batch size
     """
-    # compute input patch padding range (border artifacts suppression)
+    # compute input patch padding range
     border = compute_slice_padding(sigma_px, px_size)
 
     # shape of the image slices processed in parallel
@@ -272,7 +269,7 @@ def config_slice_batch(sigma_num, mem_growth_factor=18.4, mem_fudge_factor=1.0,
 
     slice_size_mb: float
         memory size (in megabytes) of the basic image slices
-        fed to the Frangi filter
+        fed to the blob detection function
     """
     # maximum RAM not provided: use all
     if max_ram_mb is None:
@@ -369,7 +366,7 @@ def crop_slice(img_slice, rng):
 
 def get_slice_size(max_ram, mem_growth_factor, mem_fudge_factor, slice_batch_size, sigma_num):
     """
-    Compute the size of the basic microscopy image slices fed to the Frangi filtering stage.
+    Compute the size of the basic microscopy image slices fed to the blob detection function.
 
     Parameters
     ----------
@@ -378,7 +375,7 @@ def get_slice_size(max_ram, mem_growth_factor, mem_fudge_factor, slice_batch_siz
 
     mem_growth_factor: float
         empirical memory growth factor
-        of the pipeline stage (Frangi filter or ODF estimation)
+        of the blob detection stage
 
     mem_fudge_factor: float
         memory fudge factor
@@ -406,7 +403,7 @@ def slice_channel(img, rng, channel, mosaic=False):
 
     Parameters
     ----------
-    image: numpy.ndarray
+    img: numpy.ndarray
         microscopy volume image
 
     rng: tuple (dtype=int)

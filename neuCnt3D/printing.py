@@ -38,13 +38,13 @@ def color_text(r, g, b, text):
     return clr_text
 
 
-def print_analysis_info(method, diam_um, sigma_num, img_shape_um, slice_shape_um, slice_num, px_size, img_item_size):
+def print_analysis_info(approach, diam_um, sigma_num, img_shape_um, slice_shape_um, slice_num, px_size, img_item_size):
     """
     Print analysis configuration.
 
     Parameters
     ----------
-    method: str
+    approach: str
         blob detection approach
         (Laplacian of Gaussian or Difference of Gaussian)
 
@@ -75,7 +75,7 @@ def print_analysis_info(method, diam_um, sigma_num, img_shape_um, slice_shape_um
     """
     print(color_text(0, 191, 255, "\n\n3D Neuronal Body Localization"))
 
-    print_blob_info(method, diam_um, sigma_num)
+    print_blob_info(approach, diam_um, sigma_num)
 
     print_slicing_info(img_shape_um, slice_shape_um, slice_num, px_size, img_item_size)
 
@@ -143,8 +143,9 @@ def print_results(blobs, img_shape):
     -------
     None
     """
-    print("\nTotal cell count: {0}\t({1:.1f} cell/mm\u00b3)\n"
-          .format(len(blobs), 1e9 * len(blobs) / np.prod(img_shape)))
+    num_cell = len(blobs)
+    print("\nTotal cell count: {0}\t({1} cell/mm\u00b3)\n"
+          .format(num_cell, np.floor(1e9 * num_cell / np.prod(img_shape)).astype(int)))
 
 
 def print_slicing_info(img_shape_um, slice_shape_um, slice_num, px_size, img_item_size):

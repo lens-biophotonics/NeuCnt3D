@@ -4,7 +4,7 @@ from skimage.transform import resize
 
 def correct_image_anisotropy(img, px_rsz_ratio, pad, anti_aliasing=True, preserve_range=True):
     """
-    Downsample the original microscopy image in the XY plane
+    Resize the original microscopy image in the XY plane
     in order to obtain a uniform 3D pixel size.
 
     Parameters
@@ -19,7 +19,7 @@ def correct_image_anisotropy(img, px_rsz_ratio, pad, anti_aliasing=True, preserv
         padding range array
 
     anti_aliasing: bool
-        apply an anti-aliasing filter when downsampling the XY plane
+        apply an anti-aliasing filter when resizing the XY plane
 
     preserve_range: bool
         keep the original intensity range
@@ -39,7 +39,7 @@ def correct_image_anisotropy(img, px_rsz_ratio, pad, anti_aliasing=True, preserv
         each element of the tuple will exclude peaks from within exclude_border-pixels
         of the border of the image along that dimension
     """
-    # lateral downsampling
+    # lateral resizing
     iso_shape = np.ceil(np.multiply(np.asarray(img.shape), px_rsz_ratio)).astype(int)
     iso_img = np.zeros(shape=iso_shape, dtype=img.dtype)
     for z in range(iso_shape[0]):

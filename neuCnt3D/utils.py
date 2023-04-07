@@ -1,4 +1,5 @@
 import gc
+import tempfile
 from multiprocessing import cpu_count
 from os import environ, path, unlink
 from shutil import rmtree
@@ -7,20 +8,23 @@ import numpy as np
 from joblib import dump, load
 
 
-def create_memory_map(file_path, shape, dtype, arr=None, mmap_mode='r+'):
+def create_memory_map(shape, dtype, name='tmp', tmp=None, arr=None, mmap_mode='r+'):
     """
     Create a memory-map to an array stored in a binary file on disk.
 
     Parameters
     ----------
-    file_path: str
-        path to file object to be used as the array data buffer
-
     shape: tuple
         shape of the store array
 
     dtype:
         data-type used to interpret the file contents
+
+    name: str
+        optional temporary filename
+
+    tmp: str
+        temporary file directory
 
     arr: numpy.ndarray
         array to be mapped
@@ -33,12 +37,16 @@ def create_memory_map(file_path, shape, dtype, arr=None, mmap_mode='r+'):
     mmap: NumPy memory map
         memory-mapped array
     """
-    if path.exists(file_path):
-        unlink(file_path)
+    if tmp is None:
+        tmp = tempfile.mkdtemp()
+    mmap_path = path.join(tmp, name + '.mmap')
+
+    if path.exists(mmap_path):
+        unlink(mmap_path)
     if arr is None:
         arr = np.zeros(tuple(shape), dtype=dtype)
-    _ = dump(arr, file_path)
-    mmap = load(file_path, mmap_mode=mmap_mode)
+    _ = dump(arr, mmap_path)
+    mmap = load(mmap_path, mmap_mode=mmap_mode)
     del arr
     _ = gc.collect()
 
@@ -48,10 +56,6 @@ def create_memory_map(file_path, shape, dtype, arr=None, mmap_mode='r+'):
 def get_available_cores():
     """
     Return the number of available logical cores.
-
-    Parameters
-    ----------
-    None
 
     Returns
     -------
@@ -97,7 +101,7 @@ def get_item_bytes(data):
 
     Returns
     -------
-    bytes: int
+    item_bytes: int
         item size in bytes
     """
     # get data type
@@ -105,11 +109,11 @@ def get_item_bytes(data):
 
     # type byte size
     try:
-        bytes = int(np.iinfo(data_type).bits / 8)
+        item_bytes = int(np.iinfo(data_type).bits / 8)
     except ValueError:
-        bytes = int(np.finfo(data_type).bits / 8)
+        item_bytes = int(np.finfo(data_type).bits / 8)
 
-    return bytes
+    return item_bytes
 
 
 def add_output_prefix(img_name, min_diam_um, max_diam_um, method):

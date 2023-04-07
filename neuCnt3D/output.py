@@ -40,7 +40,7 @@ def create_save_dir(img_path, img_name):
     return save_dir
 
 
-def save_soma(blobs, px_size, save_dir, save_fname):
+def save_soma(blobs, px_size, save_dir, save_name):
     """
     Save detected soma coordinates and radii to log file.
 
@@ -56,7 +56,7 @@ def save_soma(blobs, px_size, save_dir, save_fname):
     save_dir: str
         saving directory
 
-    save_fname str
+    save_name: str
         saved filename
 
     Returns
@@ -68,7 +68,7 @@ def save_soma(blobs, px_size, save_dir, save_fname):
 
     # save to .csv
     df = pd.DataFrame({'z [μm]': blobs[:, 0], 'y [μm]': blobs[:, 1], 'x [μm]': blobs[:, 2], 'rad [μm]': blobs[:, 3]})
-    df.to_csv(path.join(save_dir, save_fname + '.csv'), mode='a', sep=';', index=False, header=True)
+    df.to_csv(path.join(save_dir, save_name + '.csv'), mode='a', sep=';', index=False, header=True)
 
 
 def view_soma(blobs, neu_img, method, edge_width=0.2):
