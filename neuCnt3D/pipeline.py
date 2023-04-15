@@ -154,7 +154,7 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, ov
 
 def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap, rel_thresh,
                                         ch_neu=0, z_min=0, z_max=None, mosaic=False, max_ram_mb=None, jobs_to_cores=0.8,
-                                        dark=False, backend='threading', tmp_dir=None, inv=-1):
+                                        dark=False, backend='threading', tmp_dir=None, inv=-1, verbose=10):
     """
     Perform unsupervised neuronal body enhancement and counting on batches of
     basic microscopy image slices using parallel processes or threads.
@@ -206,12 +206,15 @@ def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap
     backend: str
         backend module employed by joblib.Parallel
 
-    tmp: str
+    tmp_dir: str
         temporary file directory
 
     inv: int or float
         invalid value assigned to skipped
         background slices
+
+    verbose: int
+        verbosity level
 
     Returns
     -------
@@ -239,10 +242,11 @@ def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap
     neu_img, z_sel, tmp_dir = init_napari_volume(img_shape, px_rsz_ratio, tmp_dir=tmp_dir, z_min=z_min, z_max=z_max)
 
     # print analysis configuration
-    print_analysis_info(approach, diam_um, sigma_num, img_shape_um, slice_shape_um, slice_num, px_size, img_item_size)
+    print_analysis_info(approach, diam_um, sigma_num, overlap, rel_thresh,
+                        img_shape_um, slice_shape_um, slice_num, px_size, img_item_size)
 
     # parallel unsupervised neuron enhancement, segmentation and counting of microscopy image sub-volumes
-    with Parallel(n_jobs=batch_size, backend=backend, verbose=10, max_nbytes=None) as parallel:
+    with Parallel(n_jobs=batch_size, backend=backend, verbose=verbose, max_nbytes=None) as parallel:
         par_blobs = parallel(
             delayed(neuron_analysis)(
                 img, rng_in_lst[i], rng_out_lst[i], pad_mat_lst[i], approach, sigma_px, sigma_num, overlap, rel_thresh,

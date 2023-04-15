@@ -38,7 +38,8 @@ def color_text(r, g, b, text):
     return clr_text
 
 
-def print_analysis_info(approach, diam_um, sigma_num, img_shape_um, slice_shape_um, slice_num, px_size, img_item_size):
+def print_analysis_info(approach, diam_um, sigma_num, overlap, rel_thresh,
+                        img_shape_um, slice_shape_um, slice_num, px_size, img_item_size):
     """
     Print analysis configuration.
 
@@ -53,6 +54,12 @@ def print_analysis_info(approach, diam_um, sigma_num, img_shape_um, slice_shape_
 
     sigma_num: int
         number of spatial scales
+
+    overlap: float
+        maximum blob overlap percentage [%]
+
+    rel_thresh: float
+        minimum percentage intensity of peaks in the filtered image relative to maximum [%]
 
     img_shape_um: numpy.ndarray (shape=(3,), dtype=float)
         volume image shape [μm]
@@ -75,7 +82,7 @@ def print_analysis_info(approach, diam_um, sigma_num, img_shape_um, slice_shape_
     """
     print(color_text(0, 191, 255, "\n\n3D Neuronal Body Localization"))
 
-    print_blob_info(approach, diam_um, sigma_num)
+    print_blob_info(approach, diam_um, sigma_num, overlap, rel_thresh)
 
     print_slicing_info(img_shape_um, slice_shape_um, slice_num, px_size, img_item_size)
 
@@ -95,7 +102,7 @@ def print_pipeline_heading():
     print(color_text(0, 250, 154, "\n3D Unsupervised Neuron Segmentation and Counting"))
 
 
-def print_blob_info(method, diam_um, sigma_num):
+def print_blob_info(method, diam_um, sigma_num, overlap, rel_thresh):
     """
     Print blob detection information.
 
@@ -111,6 +118,12 @@ def print_blob_info(method, diam_um, sigma_num):
     sigma_num: int
         number of spatial scales
 
+    overlap: float
+        maximum blob overlap percentage [%]
+
+    rel_thresh: float
+        minimum percentage intensity of peaks in the filtered image relative to maximum [%]
+
     Returns
     -------
     None
@@ -120,6 +133,8 @@ def print_blob_info(method, diam_um, sigma_num):
         print("\nMethod: " + color_text(0, 255, 84, "Laplacian of Gaussian"))
     elif method == 'dog':
         print("\nMethod: " + color_text(255, 126, 0, "Difference of Gaussian"))
+    print("Maximum overlap     [%]: {0:.1f}".format(100 * overlap))
+    print("Blobs threshold     [%]: {0:.1f}".format(100 * rel_thresh))
     print("Minimum diameter   [μm]: {0:.1f}".format(min_diam_um))
     print("Maximum diameter   [μm]: {0:.1f}".format(max_diam_um))
     print("Diameter step      [μm]: {0:.1f}".format(stp_diam_um))
