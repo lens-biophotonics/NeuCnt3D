@@ -303,9 +303,8 @@ def load_microscopy_image(cli_args):
         img = tiff.imread(img_path)
 
     # create image memory map
-    tmp_dir = None
+    tmp_dir = tempfile.mkdtemp()
     if in_mmap:
-        tmp_dir = tempfile.mkdtemp()
         img = create_memory_map(img.shape, dtype=img.dtype, name=img_name, tmp=tmp_dir, arr=img[:], mmap_mode='r')
 
     # create saving directory

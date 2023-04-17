@@ -1,0 +1,26 @@
+# Minimal makefile for Sphinx documentation
+#
+
+# You can set these variables from the command line, and also
+# from the environment for the first two.
+SPHINXOPTS    ?=
+SPHINXBUILD   ?= sphinx-build
+SOURCEDIR     = source
+BUILDDIR      = _build
+
+# Put it first so that "make" without argument is like "make help".
+help:
+	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+
+.PHONY: help Makefile
+
+html: Makefile generate_rst
+	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	cp ../dist/neuCnt3d-`python -c 'import neuCnt3d; print(neuCnt3d.__version__)'`-py3-none-any.whl _build/html
+	sed -i 's|doc/_static|_static|' _build/html/index.html
+
+generate_rst:
+	sphinx-apidoc -faM --separate -o generated ../neuCnt3d
+
+clean:
+	rm -fr _build generated
