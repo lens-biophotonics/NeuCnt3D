@@ -1,9 +1,9 @@
-from neuCnt3D.input import (get_cli_parser, get_detection_config,
+from neuCnt3d.input import (get_cli_parser, get_detection_config,
                             load_microscopy_image)
-from neuCnt3D.output import save_soma, view_soma
-from neuCnt3D.pipeline import parallel_neuron_detection_on_slices
-from neuCnt3D.printing import print_pipeline_heading
-from neuCnt3D.utils import delete_tmp_dir
+from neuCnt3d.output import save_soma, view_soma
+from neuCnt3d.pipeline import parallel_neuron_detection_on_slices
+from neuCnt3d.printing import print_pipeline_heading
+from neuCnt3d.utils import delete_tmp_dir
 
 
 def neuCnt3D(cli_args):

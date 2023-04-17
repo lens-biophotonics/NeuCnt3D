@@ -11,9 +11,9 @@ except ImportError:
 
 from os import path
 
-from neuCnt3D.output import create_save_dir
-from neuCnt3D.printing import color_text
-from neuCnt3D.utils import add_output_prefix, create_memory_map, get_item_bytes
+from neuCnt3d.output import create_save_dir
+from neuCnt3d.printing import color_text
+from neuCnt3d.utils import add_output_prefix, create_memory_map, get_item_bytes
 
 
 class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpFormatter):

@@ -2,7 +2,7 @@ from itertools import product
 
 import numpy as np
 import psutil
-from neuCnt3D.utils import get_available_cores
+from neuCnt3d.utils import get_available_cores
 
 
 def adjust_slice_coord(axis_iter, pad_rng, slice_shape, img_shape, axis):

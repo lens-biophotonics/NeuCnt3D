@@ -1,0 +1,7 @@
+joblib
+napari
+numpy
+pandas
+psutil
+scikit-image
+tifffile

@@ -1,13 +1,13 @@
 import numpy as np
 from joblib import Parallel, delayed
-from neuCnt3D.detection import (config_detection_scales, correct_blob_coord,
+from neuCnt3d.detection import (config_detection_scales, correct_blob_coord,
                                 detect_soma, merge_parallel_blobs)
-from neuCnt3D.input import get_image_info
-from neuCnt3D.preprocessing import correct_image_anisotropy
-from neuCnt3D.printing import print_analysis_info, print_results
-from neuCnt3D.slicing import (config_image_slicing, config_slice_batch,
+from neuCnt3d.input import get_image_info
+from neuCnt3d.preprocessing import correct_image_anisotropy
+from neuCnt3d.printing import print_analysis_info, print_results
+from neuCnt3d.slicing import (config_image_slicing, config_slice_batch,
                               crop_slice, slice_channel)
-from neuCnt3D.utils import create_memory_map, delete_tmp_dir
+from neuCnt3d.utils import create_memory_map, delete_tmp_dir
 
 
 def init_napari_volume(img_shape, px_rsz_ratio, tmp_dir=None, z_min=0, z_max=None):
