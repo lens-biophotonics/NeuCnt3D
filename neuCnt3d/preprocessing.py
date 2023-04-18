@@ -9,7 +9,7 @@ def correct_image_anisotropy(img, px_rsz_ratio, pad, anti_aliasing=True, preserv
 
     Parameters
     ----------
-    img: numpy.ndarray (shape=(Z,Y,X))
+    img: numpy.ndarray (axis order: (Z,Y,X))
         microscopy volume image
 
     px_rsz_ratio: numpy.ndarray (shape=(3,), dtype=float)

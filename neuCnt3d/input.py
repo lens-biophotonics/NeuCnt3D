@@ -20,7 +20,7 @@ class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHe
     pass
 
 
-def get_cli_parser():
+def get_cli_args():
     """
     Parse command line arguments.
 
@@ -34,16 +34,16 @@ def get_cli_parser():
         description='NeuCnt3D: An Unsupervised 3D Neuron Counting Tool\n'
                     'author:   Michele Sorelli (2023)\n\n',
         formatter_class=CustomFormatter)
-    cli_parser.add_argument(dest='image_path',
+    cli_parser.add_argument(dest='img_path',
                             help='path to input microscopy volume image\n'
-                                 '* supported formats: .tif, .yml (ZetaStitcher stitch file)\n')
+                                 '* supported formats: .tif, .tiff, .yml (ZetaStitcher stitch file)\n')
     cli_parser.add_argument('-a', '--approach', default='log',
                             help='blob detection approach:\n'
                                  u'log \u2023 Laplacian of Gaussian\n'
                                  u'dog \u2023 Difference of Gaussian')
     cli_parser.add_argument('-o', '--overlap', type=float, default=33.0,
                             help='maximum blob overlap percentage [%%]')
-    cli_parser.add_argument('-t', '--threshold', type=float, default=10.0,
+    cli_parser.add_argument('-t', '--thresh', type=float, default=10.0,
                             help='minimum percentage intensity of peaks in the filtered image relative to maximum [%%]')
     cli_parser.add_argument('-j', '--jobs-prc', type=float, default=80.0,
                             help='maximum parallel jobs relative to the number of available CPU cores [%%]')
@@ -52,6 +52,9 @@ def get_cli_parser():
     cli_parser.add_argument('-b', '--backend', default='threading',
                             help='Joblib parallelization backend implementation '
                             '(either loky, multiprocessing or threading)')
+    cli_parser.add_argument('-c', '--ch', type=int, default=0, help='neuronal soma channel (RGB image)')
+    cli_parser.add_argument('-d', '--dark', action='store_true', default=False,
+                            help='detect dark blobs on a bright background')
     cli_parser.add_argument('-v', '--view', action='store_true', default=False,
                             help='visualize detected blobs')
     cli_parser.add_argument('-m', '--mmap', action='store_true', default=False,
@@ -64,7 +67,6 @@ def get_cli_parser():
                             help='diameter step size [μm]')
     cli_parser.add_argument('--px-size-xy', type=float, default=0.878, help='lateral pixel size [μm]')
     cli_parser.add_argument('--px-size-z', type=float, default=1.0, help='longitudinal pixel size [μm]')
-    cli_parser.add_argument('--ch-neuron', type=int, default=0, help='neuronal soma channel (RGB image)')
     cli_parser.add_argument('--z-min', type=float, default=0, help='forced minimum output z-depth [μm]')
     cli_parser.add_argument('--z-max', type=float, default=None, help='forced maximum output z-depth [μm]')
 
@@ -100,7 +102,7 @@ def get_image_file(cli_args):
         (the image will be preliminarily loaded to RAM)
     """
     in_mmap = cli_args.mmap
-    img_path = cli_args.image_path
+    img_path = cli_args.img_path
     img_name = path.basename(img_path)
     split_name = img_name.split('.')
 
@@ -122,7 +124,7 @@ def get_image_info(img, px_size, ch_neu, mosaic=False, ch_axis=None):
 
     Parameters
     ----------
-    img: numpy.ndarray
+    img: numpy.ndarray or memory-mapped file (axis order: (Z,Y,X))
         microscopy volume image
 
     px_size: numpy.ndarray (shape=(3,), dtype=float)
@@ -201,8 +203,12 @@ def get_detection_config(cli_args, img_name):
     z_max: int
         maximum output z-depth [px]
 
-    ch_neuron: int
-        neuronal bodies channel (RGB image)
+    ch_neu: int
+        neuronal body channel (RGB image)
+
+    dark: bool
+        if True, detect dark 3D blob-like structures
+        (i.e., negative contrast polarity)
 
     backend: str
         supported parallelization backend implementations:
@@ -219,7 +225,7 @@ def get_detection_config(cli_args, img_name):
         microscopy image filename
     """
     # pipeline configuration
-    ch_neuron = cli_args.ch_neuron
+    ch_neu = cli_args.ch
     backend = cli_args.backend
     max_ram = cli_args.ram
     max_ram_mb = None if max_ram is None else max_ram * 1000
@@ -240,8 +246,9 @@ def get_detection_config(cli_args, img_name):
     diam_um = (min_diam_um, max_diam_um, stp_diam_um)
 
     # other detection parameters
+    dark = cli_args.dark
     overlap = 0.01 * cli_args.overlap
-    rel_thresh = 0.01 * cli_args.threshold
+    rel_thresh = 0.01 * cli_args.thresh
 
     # forced output z-range
     z_min = cli_args.z_min
@@ -254,7 +261,7 @@ def get_detection_config(cli_args, img_name):
     img_name = add_output_prefix(img_name, min_diam_um, max_diam_um, approach)
 
     return approach, diam_um, overlap, rel_thresh, px_size, \
-        z_min, z_max, ch_neuron, backend, max_ram_mb, jobs_to_cores, img_name, view_blobs
+        z_min, z_max, ch_neu, dark, backend, max_ram_mb, jobs_to_cores, img_name, view_blobs
 
 
 def load_microscopy_image(cli_args):
@@ -268,7 +275,7 @@ def load_microscopy_image(cli_args):
 
     Returns
     -------
-    img: NumPy memory map
+    img: numpy.ndarray or memory-mapped file (axis order: (Z,Y,X))
         microscopy volume image
 
     mosaic: bool

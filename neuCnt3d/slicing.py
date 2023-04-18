@@ -234,7 +234,7 @@ def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, sl
     return rng_in_lst, rng_out_lst, pad_mat_lst, slice_shape_um, px_rsz_ratio, slice_num, batch_size
 
 
-def config_slice_batch(sigma_num, mem_growth_factor=18.4, mem_fudge_factor=1.0,
+def config_slice_batch(sigma_num, mem_growth_factor=7.5, mem_fudge_factor=1.0,
                        min_slice_size_mb=-1, jobs_to_cores=0.8, max_ram_mb=None):
     """
     Compute size and number of the batches of basic microscopy image slices
@@ -338,7 +338,7 @@ def crop_slice(img_slice, rng):
 
     Parameters
     ----------
-    img_slice: numpy.ndarray
+    img_slice: numpy.ndarray (axis order: (Z,Y,X))
         image slice
 
     rng: tuple
@@ -397,37 +397,37 @@ def get_slice_size(max_ram, mem_growth_factor, mem_fudge_factor, slice_batch_siz
     return slice_size
 
 
-def slice_channel(img, rng, channel, mosaic=False):
+def slice_channel(img, rng, ch, mosaic=False):
     """
     Slice desired channel from input image volume.
 
     Parameters
     ----------
-    img: numpy.ndarray
+    img: numpy.ndarray or memory-mapped file (axis order: (Z,Y,X))
         microscopy volume image
 
     rng: tuple (dtype=int)
         3D index ranges
 
-    channel: int
-        image channel axis
+    ch: int
+        neuronal body channel
 
     mosaic: bool
         True for tiled reconstructions aligned using ZetaStitcher
 
     Returns
     -------
-    image_slice: numpy.ndarray
+    img_slice: numpy.ndarray (axis order: (Z,Y,X))
         sliced image patch
     """
     z_rng, r_rng, c_rng = rng
 
-    if channel is None:
-        image_slice = img[z_rng, r_rng, c_rng]
+    if ch is None:
+        img_slice = img[z_rng, r_rng, c_rng]
     else:
         if mosaic:
-            image_slice = img[z_rng, channel, r_rng, c_rng]
+            img_slice = img[z_rng, ch, r_rng, c_rng]
         else:
-            image_slice = img[z_rng, r_rng, c_rng, channel]
+            img_slice = img[z_rng, r_rng, c_rng, ch]
 
-    return image_slice
+    return img_slice

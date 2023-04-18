@@ -5,3 +5,4 @@ dist/
 # ignored folders
 __pycache__/
 .vscode/
+.idea/

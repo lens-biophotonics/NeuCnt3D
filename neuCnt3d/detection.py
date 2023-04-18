@@ -83,7 +83,7 @@ def detect_soma(img, min_sigma=1, max_sigma=50, num_sigma=10, sigma_ratio=1.6, a
 
     Parameters
     ----------
-    img: numpy.ndarray (shape=(Z,Y,X))
+    img: numpy.ndarray or memory-mapped file (axis order: (Z,Y,X))
         soma fluorescence volume image
 
     min_sigma: int
@@ -143,6 +143,9 @@ def detect_soma(img, min_sigma=1, max_sigma=50, num_sigma=10, sigma_ratio=1.6, a
     elif approach == 'dog':
         blobs = blob_dog(img, min_sigma=min_sigma, max_sigma=max_sigma, sigma_ratio=sigma_ratio, threshold=threshold,
                          overlap=overlap, threshold_rel=threshold_rel, exclude_border=border)
+    else:
+        raise ValueError('Unrecognized blob detection approach! '
+                         'This must be either "log" (Laplacian of Gaussian) or "dog" (Difference of Gaussian)...')
 
     # estimate blob radii
     blobs[..., 3] = blobs[..., 3] * np.sqrt(3)

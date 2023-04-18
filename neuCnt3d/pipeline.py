@@ -10,7 +10,7 @@ from neuCnt3d.slicing import (config_image_slicing, config_slice_batch,
 from neuCnt3d.utils import create_memory_map, delete_tmp_dir
 
 
-def init_napari_volume(img_shape, px_rsz_ratio, tmp_dir=None, z_min=0, z_max=None):
+def init_napari_image(img_shape, px_rsz_ratio, tmp_dir=None, z_min=0, z_max=None):
     """
     Initialize the memory-mapped image for the Napari viewer.
 
@@ -33,7 +33,7 @@ def init_napari_volume(img_shape, px_rsz_ratio, tmp_dir=None, z_min=0, z_max=Non
 
     Returns
     -------
-    neu_img: NumPy memory-map object (shape=(Z,Y,X), dtype=uint8)
+    neu_img: memory-mapped file (axis order: (Z,Y,X), dtype=uint8)
         initialized neuron channel array
 
     z_sel: NumPy slice object
@@ -66,7 +66,7 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, ov
 
     Parameters
     ----------
-    img: numpy.ndarray (shape=(Z,Y,X))
+    img: numpy.ndarray or memory-mapped file (axis order: (Z,Y,X))
         soma fluorescence volume image
 
     rng_in: NumPy slice object
@@ -89,7 +89,7 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, ov
         number of spatial scales analyzed
 
     overlap: float
-        maximum blob overlap percentage [%]
+        maximum blob percentage overlap [%]
 
     rel_thresh: float
         minimum percentage intensity of peaks in the filtered image relative to maximum [%]
@@ -97,7 +97,7 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, ov
     px_rsz_ratio: numpy.ndarray (shape=(3,), dtype=float)
         3D image resize ratio
 
-    neu_img: NumPy memory map (shape=(Z,Y,X), dtype=uint8)
+    neu_img: memory-mapped file (axis order: (Z,Y,X), dtype=uint8)
         neuron channel image
 
     z_sel: NumPy slice object
@@ -124,7 +124,7 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, ov
         plus the best sigma of the Gaussian kernel which detected the blob
     """
     # slice neuron image
-    neu_slice = slice_channel(img, rng_in, channel=ch_neu, mosaic=mosaic)
+    neu_slice = slice_channel(img, rng_in, ch=ch_neu, mosaic=mosaic)
 
     # skip background
     if np.max(neu_slice) != 0:
@@ -153,15 +153,15 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, ov
 
 
 def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap, rel_thresh,
-                                        ch_neu=0, z_min=0, z_max=None, mosaic=False, max_ram_mb=None, jobs_to_cores=0.8,
-                                        dark=False, backend='threading', tmp_dir=None, inv=-1, verbose=10):
+                                        ch_neu=0, dark=False, z_min=0, z_max=None, mosaic=False, max_ram_mb=None,
+                                        jobs_to_cores=0.8, backend='threading', tmp_dir=None, inv=-1, verbose=10):
     """
     Perform unsupervised neuronal body enhancement and counting on batches of
     basic microscopy image slices using parallel processes or threads.
 
     Parameters
     ----------
-    img: NumPy memory-map object (shape=(Z,Y,X))
+    img: numpy.ndarray or memory-mapped file (axis order: (Z,Y,X))
         microscopy volume image
 
     px_size: numpy.ndarray (shape=(3,), dtype=float)
@@ -183,6 +183,10 @@ def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap
     ch_neu: int
         neuronal bodies channel
 
+    dark: bool
+        if True, enhance black 3D blob-like structures
+        (i.e., negative contrast polarity)
+
     z_min: int
         minimum output z-depth in [px]
 
@@ -190,7 +194,7 @@ def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap
         maximum output z-depth in [px]
 
     mosaic: bool
-        must be True for tiled reconstructions aligned using ZetaStitcher
+        True for tiled reconstructions aligned using ZetaStitcher
 
     max_ram_mb: float
         maximum RAM available to the soma detection algorithm
@@ -198,10 +202,6 @@ def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap
     jobs_to_cores: float
         max number of jobs relative to the available CPU cores
         (default: 80%)
-
-    dark: bool
-        if True, enhance black 3D blob-like structures
-        (i.e., negative contrast polarity)
 
     backend: str
         backend module employed by joblib.Parallel
@@ -222,7 +222,7 @@ def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap
         2D array with each row representing 3 coordinate values for a 3D image,
         plus the best sigma of the Gaussian kernel which detected the blob
 
-    neu_img: NumPy memory-map object (shape=(Z,Y,X), dtype=uint8)
+    neu_img: memory-mapped file (axis order: (Z,Y,X), dtype=uint8)
         resized soma channel image with isotropic pixel size
     """
     # get info on the input volume image
@@ -239,13 +239,13 @@ def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap
         config_image_slicing(sigma_px, img_shape, img_item_size, px_size, batch_size, max_slice_size)
 
     # initialize resized neuron channel image
-    neu_img, z_sel, tmp_dir = init_napari_volume(img_shape, px_rsz_ratio, tmp_dir=tmp_dir, z_min=z_min, z_max=z_max)
+    neu_img, z_sel, tmp_dir = init_napari_image(img_shape, px_rsz_ratio, tmp_dir=tmp_dir, z_min=z_min, z_max=z_max)
 
     # print analysis configuration
     print_analysis_info(approach, diam_um, sigma_num, overlap, rel_thresh,
                         img_shape_um, slice_shape_um, slice_num, px_size, img_item_size)
 
-    # parallel unsupervised neuron enhancement, segmentation and counting of microscopy image sub-volumes
+    # parallel unsupervised neuron localization and counting on microscopy image sub-volumes
     with Parallel(n_jobs=batch_size, backend=backend, verbose=verbose, max_nbytes=None) as parallel:
         par_blobs = parallel(
             delayed(neuron_analysis)(

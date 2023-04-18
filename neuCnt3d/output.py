@@ -71,7 +71,7 @@ def save_soma(blobs, px_size, save_dir, save_name):
     df.to_csv(path.join(save_dir, save_name + '.csv'), mode='a', sep=';', index=False, header=True)
 
 
-def view_soma(blobs, neu_img, method, edge_width=0.2):
+def view_soma(blobs, neu_img, method, edge_width=0.1):
     """
     Display the detected soma in the Napari viewer.
 
@@ -81,7 +81,7 @@ def view_soma(blobs, neu_img, method, edge_width=0.2):
         2D array with each row representing 3 coordinate values for a 3D image,
         plus the best sigma of the Gaussian kernel which detected the blob
 
-    neu_img: NumPy memory-map object (shape=(Z,Y,X), dtype=uint8)
+    neu_img: memory-mapped file (axis order: (Z,Y,X), dtype=uint8)
         soma channel image
 
     method: str
@@ -89,7 +89,7 @@ def view_soma(blobs, neu_img, method, edge_width=0.2):
         (Laplacian of Gaussian or Difference of Gaussian)
 
     edge_width: float
-        width of the blob symbol edge
+        relative width of the disc symbol edge
 
     Returns
     -------
@@ -99,8 +99,12 @@ def view_soma(blobs, neu_img, method, edge_width=0.2):
         edge_color = 'lime'
     elif method == 'dog':
         edge_color = 'orangered'
+    else:
+        raise ValueError('Unrecognized blob detection approach! '
+                         'This must be either "log" (Laplacian of Gaussian) or "dog" (Difference of Gaussian)...')
 
     viewer = napari.view_image(neu_img, rgb=False)
     viewer.add_points(blobs[:, :-1], size=blobs[:, -1], name='points',
                       edge_color=edge_color, edge_width=edge_width, face_color=[0] * 4)
+
     napari.run()

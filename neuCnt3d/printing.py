@@ -91,10 +91,6 @@ def print_pipeline_heading():
     """
     Print NeuCnt3D pipeline heading.
 
-    Parameters
-    ----------
-    None
-
     Returns
     -------
     None
