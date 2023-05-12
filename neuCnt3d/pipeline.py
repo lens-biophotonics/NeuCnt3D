@@ -59,7 +59,7 @@ def init_napari_image(img_shape, px_rsz_ratio, tmp_dir=None, z_min=0, z_max=None
 
 
 def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, overlap, rel_thresh, px_rsz_ratio,
-                    neu_img, z_sel, ch_neu=0, dark=False, mosaic=False, inv=-1):
+                    neu_img, z_sel, ch_neu=0, dark=False, mosaic=False, inv=-1, zero_thr=10, bg_thr=0.05):
     """
     Conduct an unsupervised neuronal body enhancement and counting on a basic slice
     selected from the whole microscopy volume image.
@@ -117,6 +117,12 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, ov
         invalid value assigned to skipped
         background slices
 
+    zero_thr: int
+        zero-threshold value
+
+    bg_thr: float
+        maximum relative threshold of zero pixels
+
     Returns
     -------
     blobs: numpy.ndarray (shape=(N,4))
@@ -127,7 +133,9 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, ov
     neu_slice = slice_channel(img, rng_in, ch=ch_neu, mosaic=mosaic)
 
     # skip background
-    if np.max(neu_slice) != 0:
+    tot = np.prod(neu_slice.shape)
+    nonzero = np.count_nonzero(neu_slice > zero_thr)
+    if nonzero / tot > bg_thr:
 
         # correct pixel size anisotropy (resize XY plane)
         iso_neu_slice, iso_neu_slice_crop, rsz_pad, rsz_border = correct_image_anisotropy(neu_slice, px_rsz_ratio, pad)
