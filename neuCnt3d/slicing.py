@@ -234,7 +234,7 @@ def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, sl
     return rng_in_lst, rng_out_lst, pad_mat_lst, slice_shape_um, px_rsz_ratio, slice_num, batch_size
 
 
-def config_slice_batch(sigma_num, mem_growth_factor=7.5, mem_fudge_factor=1.0,
+def config_slice_batch(approach, sigma_num, mem_growth_factor=5.0, mem_fudge_factor=1.0,
                        min_slice_size_mb=-1, jobs_to_cores=0.8, max_ram_mb=None):
     """
     Compute size and number of the batches of basic microscopy image slices
@@ -242,6 +242,10 @@ def config_slice_batch(sigma_num, mem_growth_factor=7.5, mem_fudge_factor=1.0,
 
     Parameters
     ----------
+    approach: str
+        blob detection approach
+        (Laplacian of Gaussian or Difference of Gaussian)
+
     sigma_num: int
         number of spatial scales
 
@@ -280,6 +284,12 @@ def config_slice_batch(sigma_num, mem_growth_factor=7.5, mem_fudge_factor=1.0,
 
     # initialize slice batch size
     slice_batch_size = int(jobs_to_cores * num_cpu)
+
+    # select memory growth factor
+    if approach == 'log':
+        mem_growth_factor = 5.0
+    elif approach == 'dog':
+        mem_growth_factor = 1.0
 
     # get image slice size
     slice_size_mb = get_slice_size(max_ram_mb, mem_growth_factor, mem_fudge_factor, slice_batch_size, sigma_num)

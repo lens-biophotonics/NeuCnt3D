@@ -1,5 +1,4 @@
 import numpy as np
-
 from skimage.feature import blob_dog, blob_log
 
 
@@ -139,10 +138,10 @@ def detect_soma(img, min_sigma=1, max_sigma=50, num_sigma=10, sigma_ratio=1.6, a
     # detect blobs
     if approach == 'log':
         blobs = blob_log(img, min_sigma=min_sigma, max_sigma=max_sigma, num_sigma=num_sigma, threshold=threshold,
-                         overlap=overlap, threshold_rel=threshold_rel, exclude_border=border)
+                         threshold_rel=threshold_rel, overlap=overlap, exclude_border=border)
     elif approach == 'dog':
         blobs = blob_dog(img, min_sigma=min_sigma, max_sigma=max_sigma, sigma_ratio=sigma_ratio, threshold=threshold,
-                         overlap=overlap, threshold_rel=threshold_rel, exclude_border=border)
+                         threshold_rel=threshold_rel, overlap=overlap, exclude_border=border)
     else:
         raise ValueError('Unrecognized blob detection approach! '
                          'This must be either "log" (Laplacian of Gaussian) or "dog" (Difference of Gaussian)...')

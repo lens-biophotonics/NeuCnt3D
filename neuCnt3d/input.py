@@ -43,8 +43,7 @@ def get_cli_args():
                                  u'dog \u2023 Difference of Gaussian')
     cli_parser.add_argument('-o', '--overlap', type=float, default=33.0,
                             help='maximum blob overlap percentage [%%]')
-    cli_parser.add_argument('-t', '--thresh', type=float, default=10.0,
-                            help='minimum percentage intensity of peaks in the filtered image relative to maximum [%%]')
+
     cli_parser.add_argument('-j', '--jobs-prc', type=float, default=80.0,
                             help='maximum parallel jobs relative to the number of available CPU cores [%%]')
     cli_parser.add_argument('-r', '--ram', type=float, default=None,
@@ -65,6 +64,10 @@ def get_cli_args():
                             help='maximum soma diameter of interest [μm]')
     cli_parser.add_argument('--stp-diam', type=float, default=5.0,
                             help='diameter step size [μm]')
+    cli_parser.add_argument('--rel-thresh', type=float, default=None,
+                            help='minimum percentage intensity of peaks in the filtered image relative to maximum [%%]')
+    cli_parser.add_argument('--abs-thresh', type=float, default=None,
+                            help='minimum intensity of peaks in the filtered image')
     cli_parser.add_argument('--px-size-xy', type=float, default=0.878, help='lateral pixel size [μm]')
     cli_parser.add_argument('--px-size-z', type=float, default=1.0, help='longitudinal pixel size [μm]')
     cli_parser.add_argument('--z-min', type=float, default=0, help='forced minimum output z-depth [μm]')
@@ -149,6 +152,10 @@ def get_image_info(img, px_size, ch_neu, mosaic=False, ch_axis=None):
 
     img_item_size: int
         array item size (in bytes)
+
+    img_max
+
+    ch_neu
     """
     # adapt channel axis
     img_shape = np.asarray(img.shape)
@@ -163,8 +170,9 @@ def get_image_info(img, px_size, ch_neu, mosaic=False, ch_axis=None):
         img_shape = np.delete(img_shape, ch_axis)
     img_shape_um = np.multiply(img_shape, px_size)
     img_item_size = get_item_bytes(img)
+    img_max = np.iinfo(img.dtype).max
 
-    return img_shape, img_shape_um, img_item_size, ch_neu
+    return img_shape, img_shape_um, img_item_size, img_max, ch_neu
 
 
 def get_detection_config(cli_args, img_name):
@@ -190,6 +198,8 @@ def get_detection_config(cli_args, img_name):
 
     overlap: float
         maximum blob overlap percentage [%]
+
+    abs_thresh
 
     rel_thresh: float
         minimum percentage intensity of peaks in the filtered image relative to maximum [%]
@@ -248,7 +258,10 @@ def get_detection_config(cli_args, img_name):
     # other detection parameters
     dark = cli_args.dark
     overlap = 0.01 * cli_args.overlap
-    rel_thresh = 0.01 * cli_args.thresh
+    rel_thresh = cli_args.rel_thresh
+    if rel_thresh is not None:
+        rel_thresh *= 0.01
+    abs_thresh = cli_args.abs_thresh
 
     # forced output z-range
     z_min = cli_args.z_min
@@ -260,7 +273,7 @@ def get_detection_config(cli_args, img_name):
     # add configuration prefix to output filenames
     img_name = add_output_prefix(img_name, min_diam_um, max_diam_um, approach)
 
-    return approach, diam_um, overlap, rel_thresh, px_size, \
+    return approach, diam_um, overlap, abs_thresh, rel_thresh, px_size, \
         z_min, z_max, ch_neu, dark, backend, max_ram_mb, jobs_to_cores, img_name, view_blobs
 
 

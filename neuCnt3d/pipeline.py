@@ -58,8 +58,8 @@ def init_napari_image(img_shape, px_rsz_ratio, tmp_dir=None, z_min=0, z_max=None
     return neu_img, z_sel, tmp_dir
 
 
-def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, overlap, rel_thresh, px_rsz_ratio,
-                    neu_img, z_sel, ch_neu=0, dark=False, mosaic=False, inv=-1, zero_thr=10, bg_thr=0.05):
+def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, overlap, abs_thresh, rel_thresh,
+                    px_rsz_ratio, neu_img, z_sel, ch_neu=0, dark=False, mosaic=False, inv=-1, zero_thr=10, bg_thr=0.01):
     """
     Conduct an unsupervised neuronal body enhancement and counting on a basic slice
     selected from the whole microscopy volume image.
@@ -90,6 +90,8 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, ov
 
     overlap: float
         maximum blob percentage overlap [%]
+
+    abs_thresh
 
     rel_thresh: float
         minimum percentage intensity of peaks in the filtered image relative to maximum [%]
@@ -142,7 +144,7 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, ov
 
         # perform unsupervised neuron count analysis
         blobs = detect_soma(iso_neu_slice, approach=approach, min_sigma=sigma_px[0], max_sigma=sigma_px[1],
-                            num_sigma=sigma_num, overlap=overlap, threshold_rel=rel_thresh,
+                            num_sigma=sigma_num, overlap=overlap, threshold_rel=rel_thresh, threshold=abs_thresh,
                             dark=dark, border=rsz_border)
 
         # add slice offset to coordinates and select z-range
@@ -160,7 +162,7 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, ov
         return inv * np.ones((4,))
 
 
-def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap, rel_thresh,
+def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap, abs_thresh, rel_thresh,
                                         ch_neu=0, dark=False, z_min=0, z_max=None, mosaic=False, max_ram_mb=None,
                                         jobs_to_cores=0.8, backend='threading', tmp_dir=None, inv=-1, verbose=10):
     """
@@ -184,6 +186,8 @@ def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap
 
     overlap: float
         maximum blob overlap percentage [%]
+
+    abs_thresh
 
     rel_thresh: float
         minimum percentage intensity of peaks in the filtered image relative to maximum [%]
@@ -234,13 +238,14 @@ def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap
         resized soma channel image with isotropic pixel size
     """
     # get info on the input volume image
-    img_shape, img_shape_um, img_item_size, ch_neu = get_image_info(img, px_size, ch_neu, mosaic=mosaic)
+    img_shape, img_shape_um, img_item_size, img_max, ch_neu = get_image_info(img, px_size, ch_neu, mosaic=mosaic)
 
     # compute the scale range adopted by the blob detection stage
     sigma_px, sigma_num = config_detection_scales(diam_um, px_size)
 
     # configure batch of basic image slices to be analyzed in parallel
-    batch_size, max_slice_size = config_slice_batch(sigma_num, max_ram_mb=max_ram_mb, jobs_to_cores=jobs_to_cores)
+    batch_size, max_slice_size = config_slice_batch(approach, sigma_num,
+                                                    max_ram_mb=max_ram_mb, jobs_to_cores=jobs_to_cores)
 
     # configure the overall microscopy volume slicing
     rng_in_lst, rng_out_lst, pad_mat_lst, slice_shape_um, px_rsz_ratio, slice_num, batch_size = \
@@ -250,15 +255,20 @@ def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap
     neu_img, z_sel, tmp_dir = init_napari_image(img_shape, px_rsz_ratio, tmp_dir=tmp_dir, z_min=z_min, z_max=z_max)
 
     # print analysis configuration
-    print_analysis_info(approach, diam_um, sigma_num, overlap, rel_thresh,
+    print_analysis_info(approach, diam_um, sigma_num, overlap, abs_thresh, rel_thresh,
                         img_shape_um, slice_shape_um, slice_num, px_size, img_item_size)
 
     # parallel unsupervised neuron localization and counting on microscopy image sub-volumes
+    # adapt blob thresholds
+    if abs_thresh is not None:
+        abs_thresh /= img_max
+        rel_thresh = None
     with Parallel(n_jobs=batch_size, backend=backend, verbose=verbose, max_nbytes=None) as parallel:
         par_blobs = parallel(
             delayed(neuron_analysis)(
-                img, rng_in_lst[i], rng_out_lst[i], pad_mat_lst[i], approach, sigma_px, sigma_num, overlap, rel_thresh,
-                px_rsz_ratio, neu_img, z_sel, ch_neu=ch_neu, dark=dark, mosaic=mosaic, inv=inv)
+                img, rng_in_lst[i], rng_out_lst[i], pad_mat_lst[i], approach, sigma_px, sigma_num, overlap,
+                abs_thresh, rel_thresh, px_rsz_ratio, neu_img, z_sel,
+                ch_neu=ch_neu, dark=dark, mosaic=mosaic, inv=inv)
             for i in range(slice_num))
 
     # concatenate parallel results
