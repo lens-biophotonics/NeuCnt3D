@@ -6,7 +6,10 @@ import pandas as pd
 
 warnings.simplefilter(action='ignore')
 
-import napari # noqa
+try:
+    import napari # noqa
+except ImportError:
+    pass
 
 
 def create_save_dir(img_path, img_name):
