@@ -9,7 +9,7 @@ try:
 except ImportError:
     pass
 
-from os import path
+from os import getcwd, path
 
 from neuCnt3d.output import create_save_dir
 from neuCnt3d.printing import color_text
@@ -326,7 +326,7 @@ def load_microscopy_image(cli_args):
         img = tiff.imread(img_path)
 
     # create image memory map
-    tmp_dir = tempfile.mkdtemp()
+    tmp_dir = tempfile.mkdtemp(dir=getcwd())
     if in_mmap:
         img = create_memory_map(img.shape, dtype=img.dtype, name=img_name, tmp=tmp_dir, arr=img[:], mmap_mode='r')
 
