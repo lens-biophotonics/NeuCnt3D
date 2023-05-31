@@ -10,7 +10,7 @@ from neuCnt3d.slicing import (config_image_slicing, config_slice_batch,
 from neuCnt3d.utils import create_memory_map, delete_tmp_dir
 
 
-def init_napari_image(img_shape, px_rsz_ratio, tmp_dir=None, z_min=0, z_max=None):
+def init_napari_image(img_shape, px_rsz_ratio, tmp_dir=None, z_min=0, z_max=None, view=False):
     """
     Initialize the memory-mapped image for the Napari viewer.
 
@@ -30,6 +30,9 @@ def init_napari_image(img_shape, px_rsz_ratio, tmp_dir=None, z_min=0, z_max=None
 
     z_max: int
         maximum output z-depth in [px]
+
+    view: bool
+        visualize point cloud in the Napari viewer
 
     Returns
     -------
@@ -53,7 +56,10 @@ def init_napari_image(img_shape, px_rsz_ratio, tmp_dir=None, z_min=0, z_max=None
     out_shape = np.ceil(np.multiply(px_rsz_ratio, img_shape)).astype(int)
 
     # neuron channel memory map
-    neu_img = create_memory_map(out_shape, dtype='uint8', name='tmp_neu_img', tmp=tmp_dir)
+    if view:
+        neu_img = create_memory_map(out_shape, dtype='uint8', name='tmp_neu_img', tmp=tmp_dir)
+    else:
+        neu_img = None
 
     return neu_img, z_sel, tmp_dir
 
@@ -154,7 +160,8 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, ov
         iso_neu_slice_crop = crop_slice(iso_neu_slice_crop, rng_out)
 
         # fill memory-mapped output array
-        neu_img[rng_out] = iso_neu_slice_crop[z_sel, ...].astype(np.uint8)
+        if neu_img is not None:
+            neu_img[rng_out] = iso_neu_slice_crop[z_sel, ...].astype(np.uint8)
 
         return blobs
 
@@ -164,7 +171,8 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, ov
 
 def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap, abs_thresh, rel_thresh,
                                         ch_neu=0, dark=False, z_min=0, z_max=None, mosaic=False, max_ram_mb=None,
-                                        jobs_to_cores=0.8, backend='threading', tmp_dir=None, inv=-1, verbose=10):
+                                        jobs_to_cores=0.8, backend='threading', tmp_dir=None, inv=-1, verbose=10,
+                                        view=False):
     """
     Perform unsupervised neuronal body enhancement and counting on batches of
     basic microscopy image slices using parallel processes or threads.
@@ -228,6 +236,9 @@ def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap
     verbose: int
         verbosity level
 
+    view: bool
+        visualize point cloud in the Napari viewer
+
     Returns
     -------
     blobs: numpy.ndarray (shape=(N,4))
@@ -252,7 +263,8 @@ def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap
         config_image_slicing(sigma_px, img_shape, img_item_size, px_size, batch_size, max_slice_size)
 
     # initialize resized neuron channel image
-    neu_img, z_sel, tmp_dir = init_napari_image(img_shape, px_rsz_ratio, tmp_dir=tmp_dir, z_min=z_min, z_max=z_max)
+    neu_img, z_sel, tmp_dir = init_napari_image(img_shape, px_rsz_ratio, tmp_dir=tmp_dir, z_min=z_min, z_max=z_max,
+                                                view=view)
 
     # print analysis configuration
     print_analysis_info(approach, diam_um, sigma_num, overlap, abs_thresh, rel_thresh,
@@ -275,7 +287,8 @@ def parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap
     blobs = merge_parallel_blobs(par_blobs, inv=inv)
 
     # delete temporary folder
-    delete_tmp_dir(tmp_dir)
+    if tmp_dir is not None:
+        delete_tmp_dir(tmp_dir)
 
     # print results to terminal
     print_results(blobs, img_shape)

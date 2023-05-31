@@ -233,6 +233,9 @@ def get_detection_config(cli_args, img_name):
 
     img_name: str
         microscopy image filename
+
+    view_blobs: bool
+        visualize point cloud in the Napari viewer
     """
     # pipeline configuration
     ch_neu = cli_args.ch

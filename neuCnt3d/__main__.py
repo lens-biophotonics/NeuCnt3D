@@ -20,7 +20,7 @@ def neuCnt3D(cli_args):
         parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap, abs_thresh, rel_thresh,
                                             ch_neu=ch_neu, dark=dark, z_min=z_min, z_max=z_max, mosaic=mosaic,
                                             max_ram_mb=max_ram_mb, jobs_to_cores=jobs_to_cores,
-                                            backend=backend, tmp_dir=tmp_dir)
+                                            backend=backend, tmp_dir=tmp_dir, view=view)
 
     # save blob coordinates and radii to .csv log
     save_soma(blobs, px_size, save_dir, out_name)
