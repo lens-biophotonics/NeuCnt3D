@@ -9,23 +9,22 @@ from neuCnt3d.utils import delete_tmp_dir
 def neuCnt3D(cli_args):
 
     # load microscopy volume image
-    img, mosaic, cli_args, save_dir, tmp_dir, img_name = load_microscopy_image(cli_args)
+    img, is_tiled, cli_args, save_dir, tmp_dir, img_name = load_microscopy_image(cli_args)
 
     # get analysis configuration
-    approach, diam_um, overlap, abs_thresh, rel_thresh, px_size, z_min, z_max, \
-        ch_neu, dark, backend, max_ram_mb, jobs_to_cores, out_name, view = get_detection_config(cli_args, img_name)
+    blob_method, diam_um, ovlp, abs_thr, rel_thr, px_sz, z_rng, ch_neu, dark, \
+        backend, max_ram, jobs, out_name, view = get_detection_config(cli_args, img_name)
 
     # perform parallel unsupervised blob detection on batches of basic image slices
     blobs, neu_img = \
-        parallel_neuron_detection_on_slices(img, px_size, approach, diam_um, overlap, abs_thresh, rel_thresh,
-                                            ch_neu=ch_neu, dark=dark, z_min=z_min, z_max=z_max, mosaic=mosaic,
-                                            max_ram_mb=max_ram_mb, jobs_to_cores=jobs_to_cores,
-                                            backend=backend, tmp_dir=tmp_dir, view=view)
+        parallel_neuron_detection_on_slices(img, px_sz, blob_method, diam_um, ovlp, abs_thr, rel_thr,
+                                            ch_neu=ch_neu, dark=dark, z_rng=z_rng, is_tiled=is_tiled,
+                                            max_ram=max_ram, jobs=jobs, backend=backend, tmp_dir=tmp_dir, view=view)
 
     # save blob coordinates and radii to .csv log
-    save_soma(blobs, px_size, save_dir, out_name)
+    save_soma(blobs, px_sz, save_dir, out_name)
     if view:
-        view_soma(blobs, neu_img, approach)
+        view_soma(blobs, neu_img, blob_method)
 
     # delete temporary folder
     delete_tmp_dir(tmp_dir)

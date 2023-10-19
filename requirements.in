@@ -1,7 +1,8 @@
 joblib
 napari
-numpy
+numpy==1.23.3
 pandas
 psutil
 scikit-image
 tifffile
+zetastitcher==0.7.0.post1
