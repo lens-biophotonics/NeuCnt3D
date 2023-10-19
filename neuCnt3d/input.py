@@ -9,7 +9,7 @@ try:
 except ImportError:
     pass
 
-from os import getcwd, path
+from os import path
 
 from neuCnt3d.output import create_save_dir
 from neuCnt3d.printing import color_text
@@ -41,11 +41,10 @@ def get_cli_args():
                             help='blob detection approach:\n'
                                  u'log \u2023 Laplacian of Gaussian\n'
                                  u'dog \u2023 Difference of Gaussian')
-    cli_parser.add_argument('-o', '--overlap', type=float, default=33.0,
+    cli_parser.add_argument('-o', '--ovlp', type=float, default=33.0,
                             help='maximum blob overlap percentage [%%]')
-
-    cli_parser.add_argument('-j', '--jobs-prc', type=float, default=80.0,
-                            help='maximum parallel jobs relative to the number of available CPU cores [%%]')
+    cli_parser.add_argument('-j', '--jobs', type=int, default=16,
+                            help='number of parallel jobs')
     cli_parser.add_argument('-r', '--ram', type=float, default=None,
                             help='maximum RAM available [GB]: use all if None')
     cli_parser.add_argument('-b', '--backend', default='threading',
@@ -64,9 +63,9 @@ def get_cli_args():
                             help='maximum soma diameter of interest [μm]')
     cli_parser.add_argument('--stp-diam', type=float, default=5.0,
                             help='diameter step size [μm]')
-    cli_parser.add_argument('--rel-thresh', type=float, default=None,
+    cli_parser.add_argument('--rel-thr', type=float, default=None,
                             help='minimum percentage intensity of peaks in the filtered image relative to maximum [%%]')
-    cli_parser.add_argument('--abs-thresh', type=float, default=None,
+    cli_parser.add_argument('--abs-thr', type=float, default=None,
                             help='minimum intensity of peaks in the filtered image')
     cli_parser.add_argument('--px-size-xy', type=float, default=0.878, help='lateral pixel size [μm]')
     cli_parser.add_argument('--px-size-z', type=float, default=1.0, help='longitudinal pixel size [μm]')
@@ -79,7 +78,7 @@ def get_cli_args():
     return cli_args
 
 
-def get_image_file(cli_args):
+def get_file_info(cli_args):
     """
     Get microscopy image file path and format.
 
@@ -96,15 +95,15 @@ def get_image_file(cli_args):
     img_name: str
         name of the input microscopy volume image
 
-    mosaic: bool
+    is_tiled: bool
         True for tiled reconstructions aligned using ZetaStitcher
 
-    in_mmap: bool
+    is_mmap: bool
         create a memory-mapped array of the microscopy volume image,
         increasing the parallel processing performance
         (the image will be preliminarily loaded to RAM)
     """
-    in_mmap = cli_args.mmap
+    is_mmap = cli_args.mmap
     img_path = cli_args.img_path
     img_name = path.basename(img_path)
     split_name = img_name.split('.')
@@ -112,16 +111,16 @@ def get_image_file(cli_args):
     if len(split_name) == 1:
         raise ValueError('Format must be specified for input volume images!')
     else:
-        mosaic = False
+        is_tiled = False
         img_fmt = split_name[-1]
-        img_name = img_name.replace('.' + split_name[-1], '')
+        img_name = img_name.replace('.{}'.format(img_fmt), '')
         if img_fmt == 'yml':
-            mosaic = True
+            is_tiled = True
 
-    return img_path, img_name, mosaic, in_mmap
+    return img_path, img_name, is_tiled, is_mmap
 
 
-def get_image_info(img, px_size, ch_neu, mosaic=False, ch_axis=None):
+def get_image_info(img, px_size, ch_neu, is_tiled=False, ch_axis=None):
     """
     Get information on the input microscopy volume image.
 
@@ -136,7 +135,7 @@ def get_image_info(img, px_size, ch_neu, mosaic=False, ch_axis=None):
     ch_neu: int
         neuronal soma channel
 
-    mosaic: bool
+    is_tiled: bool
         True for tiled reconstructions aligned using ZetaStitcher
 
     ch_axis: int
@@ -153,15 +152,17 @@ def get_image_info(img, px_size, ch_neu, mosaic=False, ch_axis=None):
     img_item_size: int
         array item size (in bytes)
 
-    img_max
+    img_max: float
+        max image value
 
-    ch_neu
+    ch_neu: int
+        neuronal body channel (RGB image)
     """
     # adapt channel axis
     img_shape = np.asarray(img.shape)
     ndim = len(img_shape)
     if ndim == 4:
-        ch_axis = 1 if mosaic else -1
+        ch_axis = 1 if is_tiled else -1
     elif ndim == 3:
         ch_neu = None
 
@@ -189,29 +190,27 @@ def get_detection_config(cli_args, img_name):
 
     Returns
     -------
-    approach: str
+    blob_method: str
         blob detection approach
         (Laplacian of Gaussian or Difference of Gaussian)
 
     diam_um: tuple
         soma diameter (minimum, maximum, step size) [μm]
 
-    overlap: float
+    ovlp: float
         maximum blob overlap percentage [%]
 
-    abs_thresh
+    abs_thr: float
+        absolute blob intensity threshold
 
-    rel_thresh: float
+    rel_thr: float
         minimum percentage intensity of peaks in the filtered image relative to maximum [%]
 
-    px_size: numpy.ndarray (shape=(3,), dtype=float)
+    px_sz: numpy.ndarray (shape=(3,), dtype=float)
         pixel size [μm]
 
-    z_min: int
-        minimum output z-depth [px]
-
-    z_max: int
-        maximum output z-depth [px]
+    z_rng: int
+        output z-range in [px]
 
     ch_neu: int
         neuronal body channel (RGB image)
@@ -224,12 +223,11 @@ def get_detection_config(cli_args, img_name):
         supported parallelization backend implementations:
         loky, multiprocessing or threading
 
-    max_ram_mb: float
-        maximum RAM available to the blob detection stage [MB]
+    max_ram: float
+        maximum RAM available to the blob detection stage [B]
 
-    jobs_to_cores: float
-        max number of jobs relative to the available CPU cores
-        (default: 80%)
+    jobs: int
+        number of parallel jobs
 
     img_name: str
         microscopy image filename
@@ -240,17 +238,16 @@ def get_detection_config(cli_args, img_name):
     # pipeline configuration
     ch_neu = cli_args.ch
     backend = cli_args.backend
+    jobs = cli_args.jobs
     max_ram = cli_args.ram
-    max_ram_mb = None if max_ram is None else max_ram * 1000
-    jobs_prc = cli_args.jobs_prc
-    jobs_to_cores = 1 if jobs_prc >= 100 else 0.01 * jobs_prc
-    approach = cli_args.approach
+    if max_ram is not None:
+        max_ram *= 1024**3
+
+    blob_method = cli_args.approach
     view_blobs = cli_args.view
 
     # image pixel size
-    px_size_z = cli_args.px_size_z
-    px_size_xy = cli_args.px_size_xy
-    px_size = np.array([px_size_z, px_size_xy, px_size_xy])
+    px_sz = np.array([cli_args.px_size_z, cli_args.px_size_xy, cli_args.px_size_xy])
 
     # spatial scales of interest
     min_diam_um = cli_args.min_diam
@@ -260,24 +257,22 @@ def get_detection_config(cli_args, img_name):
 
     # other detection parameters
     dark = cli_args.dark
-    overlap = 0.01 * cli_args.overlap
-    rel_thresh = cli_args.rel_thresh
-    if rel_thresh is not None:
-        rel_thresh *= 0.01
-    abs_thresh = cli_args.abs_thresh
+    ovlp = 0.01 * cli_args.ovlp
+    abs_thr = cli_args.abs_thr
+    rel_thr = cli_args.rel_thr
+    if rel_thr is not None:
+        rel_thr *= 0.01
 
     # forced output z-range
-    z_min = cli_args.z_min
-    z_max = cli_args.z_max
-    z_min = int(np.floor(z_min / px_size[0]))
-    if z_max is not None:
-        z_max = int(np.ceil(z_max / px_size[0]))
+    z_min = int(np.floor(cli_args.z_min / px_sz[0]))
+    z_max = int(np.ceil(cli_args.z_max / px_sz[0])) if cli_args.z_max is not None else cli_args.z_max
+    z_rng = (z_min, z_max)
 
     # add configuration prefix to output filenames
-    img_name = add_output_prefix(img_name, min_diam_um, max_diam_um, approach)
+    img_name = add_output_prefix(img_name, min_diam_um, max_diam_um, blob_method)
 
-    return approach, diam_um, overlap, abs_thresh, rel_thresh, px_size, \
-        z_min, z_max, ch_neu, dark, backend, max_ram_mb, jobs_to_cores, img_name, view_blobs
+    return blob_method, diam_um, ovlp, abs_thr, rel_thr, px_sz, \
+        z_rng, ch_neu, dark, backend, max_ram, jobs, img_name, view_blobs
 
 
 def load_microscopy_image(cli_args):
@@ -291,10 +286,10 @@ def load_microscopy_image(cli_args):
 
     Returns
     -------
-    img: numpy.ndarray or memory-mapped file (axis order: (Z,Y,X))
+    img: numpy.ndarray or NumPy memory-map object (axis order: (Z,Y,X))
         microscopy volume image
 
-    mosaic: bool
+    is_tiled: bool
         True for tiled microscopy reconstructions aligned using ZetaStitcher
 
     cli_args: see ArgumentParser.parse_args
@@ -313,24 +308,24 @@ def load_microscopy_image(cli_args):
     print(color_text(0, 191, 255, "\nMicroscopy Volume Image Import\n"))
 
     # retrieve microscopy image path and name
-    img_path, img_name, mosaic, in_mmap = get_image_file(cli_args)
+    img_path, img_name, is_tiled, is_mmap = get_file_info(cli_args)
 
-    # load microscopy tiled reconstruction (aligned using ZetaStitcher)
-    if mosaic:
+    # import microscopy tiled reconstruction (aligned using ZetaStitcher)
+    if is_tiled:
         print("Loading " + img_name + " tiled reconstruction...")
         img = VirtualFusedVolume(img_path)
 
-    # load microscopy z-stack
+    # import microscopy z-stack
     else:
         print("Loading " + img_name + " z-stack...")
         img = tiff.imread(img_path)
 
     # create image memory map
-    tmp_dir = tempfile.mkdtemp(dir=getcwd())
-    if in_mmap:
+    tmp_dir = tempfile.mkdtemp()
+    if is_mmap:
         img = create_memory_map(img.shape, dtype=img.dtype, name=img_name, tmp=tmp_dir, arr=img[:], mmap_mode='r')
 
     # create saving directory
     save_dir = create_save_dir(img_path, img_name)
 
-    return img, mosaic, cli_args, save_dir, tmp_dir, img_name
+    return img, is_tiled, cli_args, save_dir, tmp_dir, img_name

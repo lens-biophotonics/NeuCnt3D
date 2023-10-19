@@ -193,7 +193,7 @@ def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, sl
 
     # shape of the image slices processed in parallel
     slice_shape, slice_shape_um = \
-        compute_slice_shape(img_shape, item_size, slice_size, px_size=px_size, pad_rng=border)
+        compute_slice_shape(img_shape, item_size, slice_size, px_sz=px_size, pad_rng=border)
 
     # adjust output shapes according to the anisotropic pixel size correction
     px_size_iso = px_size[0] * np.ones(shape=px_size.shape)
@@ -234,88 +234,83 @@ def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, sl
     return rng_in_lst, rng_out_lst, pad_mat_lst, slice_shape_um, px_rsz_ratio, slice_num, batch_size
 
 
-def config_slice_batch(approach, sigma_num, mem_growth_factor=7.5, mem_fudge_factor=1.0,
-                       min_slice_size_mb=-1, jobs_to_cores=0.8, max_ram_mb=None):
+def config_slice_batch(blob_method, sigma_num, mem_fudge_factor=1.0,
+                       min_slice_size=-1, jobs=0.8, max_ram=None):
     """
-    Compute size and number of the batches of basic microscopy image slices
-    analyzed in parallel.
+    Compute the size of the basic microscopy image slices
+    and the size of the slice batches analyzed in parallel.
 
     Parameters
     ----------
-    approach: str
+    blob_method: str
         blob detection approach
         (Laplacian of Gaussian or Difference of Gaussian)
 
     sigma_num: int
         number of spatial scales
 
-    mem_growth_factor: float
-        empirical memory growth factor
-        of the blob detection stage
-
     mem_fudge_factor: float
         memory fudge factor
 
-    min_slice_size_mb: float
-        minimum slice size in [MB]
+    min_slice_size: float
+        minimum slice size [B]
 
-    jobs_to_cores: float
-        max number of jobs relative to the available CPU cores
-        (default: 80%)
+    jobs: int
+        number of parallel jobs
 
-    max_ram_mb: float
-        maximum RAM available to the blob detection stage [MB]
+    max_ram: float
+        maximum RAM available to the blob detection stage [B]
 
     Returns
     -------
-    slice_batch_size: int
+    batch_sz: int
         slice batch size
 
-    slice_size_mb: float
-        memory size (in megabytes) of the basic image slices
-        fed to the blob detection function
+    slice_sz: float
+        memory size of the basic image slices
+        fed to the blob detection function [B]
     """
     # maximum RAM not provided: use all
-    if max_ram_mb is None:
-        max_ram_mb = psutil.virtual_memory()[1] / 1e6
+    if max_ram is None:
+        max_ram = psutil.virtual_memory()[1]
 
     # number of logical cores
     num_cpu = get_available_cores()
 
     # initialize slice batch size
-    slice_batch_size = int(jobs_to_cores * num_cpu)
+    batch_sz = min(jobs, num_cpu)
 
     # select memory growth factor
-    if approach == 'log':
+    if blob_method == 'log':
         mem_growth_factor = 5.0
-    elif approach == 'dog':
+    elif blob_method == 'dog':
         mem_growth_factor = 1.0
 
     # get image slice size
-    slice_size_mb = get_slice_size(max_ram_mb, mem_growth_factor, mem_fudge_factor, slice_batch_size, sigma_num)
-    while slice_size_mb < min_slice_size_mb:
-        slice_batch_size -= 1
-        slice_size_mb = get_slice_size(max_ram_mb, mem_growth_factor, mem_fudge_factor, slice_batch_size, sigma_num)
+    slice_sz = get_slice_size(max_ram, mem_growth_factor, mem_fudge_factor, batch_sz, sigma_num)
+    while slice_sz < min_slice_size:
+        batch_sz -= 1
+        slice_sz = get_slice_size(max_ram, mem_growth_factor, mem_fudge_factor, batch_sz, sigma_num)
 
-    return slice_batch_size, slice_size_mb
+    return batch_sz, slice_sz
 
 
-def compute_slice_shape(img_shape, item_size, max_slice_size, px_size=None, pad_rng=0):
+def compute_slice_shape(img_shape, item_sz, max_slice_sz, px_sz=None, pad_rng=0):
     """
     Compute basic image chunk shape depending on its maximum size (in bytes).
 
     Parameters
     ----------
-    img_shape: numpy.ndarray (shape=(3,))
+    img_shape: numpy.ndarray (shape=(3,), dtype=int)
         total image shape [px]
 
-    item_size: int
-        image item size (in bytes)
+    item_sz: int
+        image item size [B]
 
     max_slice_size: float
-        maximum memory size (in bytes) of the basic slices analyzed iteratively
+        maximum memory size of the basic slices analyzed iteratively [B]
 
-    px_size: numpy.ndarray (shape=(3,), dtype=float)
+    px_sz: numpy.ndarray (shape=(3,), dtype=float)
         pixel size [μm]
 
     pad_rng: int
@@ -331,12 +326,12 @@ def compute_slice_shape(img_shape, item_size, max_slice_size, px_size=None, pad_
         (if px_size is provided)
     """
     slice_depth = img_shape[0]
-    slice_side = np.round(1024 * np.sqrt((max_slice_size / (slice_depth * item_size))) - 2 * pad_rng)
-    slice_shape = np.array([slice_depth, slice_side, slice_side]).astype(int)
+    slice_side = np.round(np.sqrt((max_slice_sz / (slice_depth * item_sz))) - 2 * pad_rng).astype(int)
+    slice_shape = np.array([slice_depth, slice_side, slice_side])
     slice_shape = np.min(np.stack((img_shape[:3], slice_shape)), axis=0)
 
-    if px_size is not None:
-        slice_shape_um = np.multiply(slice_shape, px_size)
+    if px_sz is not None:
+        slice_shape_um = np.multiply(slice_shape, px_sz)
         return slice_shape, slice_shape_um
     else:
         return slice_shape
@@ -374,14 +369,14 @@ def crop_slice(img_slice, rng):
     return cropped_slice
 
 
-def get_slice_size(max_ram, mem_growth_factor, mem_fudge_factor, slice_batch_size, sigma_num):
+def get_slice_size(max_ram, mem_growth_factor, mem_fudge_factor, batch_sz, num_scales):
     """
     Compute the size of the basic microscopy image slices fed to the blob detection function.
 
     Parameters
     ----------
     max_ram: float
-        available RAM
+        available RAM [B]
 
     mem_growth_factor: float
         empirical memory growth factor
@@ -390,21 +385,22 @@ def get_slice_size(max_ram, mem_growth_factor, mem_fudge_factor, slice_batch_siz
     mem_fudge_factor: float
         memory fudge factor
 
-    slice_batch_size: int
+    batch_sz: int
         slice batch size
 
-    sigma_num: int
+    num_scales: int
         number of spatial scales
+        of interest
 
     Returns
     -------
-    slice_size: float
-        memory size (in megabytes) of the basic image slices
-        fed to the pipeline stage
+    slice_sz: float
+        memory size of the basic image slices
+        fed to the blob detector [B]
     """
-    slice_size = max_ram / (slice_batch_size * mem_growth_factor * mem_fudge_factor * sigma_num)
+    slice_sz = max_ram / (batch_sz * mem_growth_factor * mem_fudge_factor * num_scales)
 
-    return slice_size
+    return slice_sz
 
 
 def slice_channel(img, rng, ch, mosaic=False):
