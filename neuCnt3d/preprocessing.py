@@ -2,7 +2,7 @@ import numpy as np
 from skimage.transform import resize
 
 
-def correct_image_anisotropy(img, px_rsz_ratio, pad, anti_aliasing=True, preserve_range=True):
+def correct_anisotropy(img, px_rsz_ratio, pad, slice_ovlp, anti_aliasing=True, preserve_range=True):
     """
     Resize the original microscopy image in the XY plane
     in order to obtain a uniform 3D pixel size.
@@ -18,6 +18,9 @@ def correct_image_anisotropy(img, px_rsz_ratio, pad, anti_aliasing=True, preserv
     pad: numpy.ndarray (shape=(3,2), dtype=int)
         padding range array
 
+    slice_ovlp: int
+        image slice lateral overlap
+
     anti_aliasing: bool
         apply an anti-aliasing filter when resizing the XY plane
 
@@ -28,9 +31,6 @@ def correct_image_anisotropy(img, px_rsz_ratio, pad, anti_aliasing=True, preserv
     -------
     iso_img: numpy.ndarray (shape=(Z,Y,X))
         padded isotropic microscopy volume image
-
-    iso_crop_img: numpy.ndarray (shape=(Z,Y,X))
-        isotropic microscopy volume image
 
     rsz_pad: numpy.ndarray (shape=(3,2), dtype=int)
         resized padding range array
@@ -47,15 +47,11 @@ def correct_image_anisotropy(img, px_rsz_ratio, pad, anti_aliasing=True, preserv
             resize(img[z, ...], output_shape=tuple(iso_shape[1:]),
                    anti_aliasing=anti_aliasing, preserve_range=preserve_range)
 
-    # resize padding matrix
+    # get resized image padding matrix
     rsz_pad = (np.floor(np.multiply(np.array([px_rsz_ratio, px_rsz_ratio]).transpose(), pad))).astype(int)
 
-    # delete resized padded boundaries
-    iso_crop_img = iso_img.copy()
-    if np.count_nonzero(rsz_pad) > 0:
-        iso_crop_img = iso_img[rsz_pad[0, 0]:iso_img.shape[0] - rsz_pad[0, 1],
-                               rsz_pad[1, 0]:iso_img.shape[1] - rsz_pad[1, 1],
-                               rsz_pad[2, 0]:iso_img.shape[2] - rsz_pad[2, 1]]
+    # get resized slice lateral overlap
+    rsz_slice_ovlp = np.multiply(np.array([0, slice_ovlp, slice_ovlp]), px_rsz_ratio).astype(int)
 
     # estimate resized border to be neglected at the blob detection stage
     # (cast to native Python integer type)
@@ -65,4 +61,4 @@ def correct_image_anisotropy(img, px_rsz_ratio, pad, anti_aliasing=True, preserv
         rsz_border_int.append(b.item())
     rsz_border_int = tuple(rsz_border_int)
 
-    return iso_img, iso_crop_img, rsz_pad, rsz_border_int
+    return iso_img, rsz_pad, rsz_border_int, rsz_slice_ovlp

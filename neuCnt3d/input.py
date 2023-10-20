@@ -9,7 +9,7 @@ try:
 except ImportError:
     pass
 
-from os import getcwd, path
+from os import path
 
 from neuCnt3d.output import create_save_dir
 from neuCnt3d.printing import color_text
@@ -235,16 +235,16 @@ def get_detection_config(cli_args, img_name):
     view_blobs: bool
         visualize point cloud in the Napari viewer
     """
-    # pipeline configuration
-    ch_neu = cli_args.ch
+    # resource configuration
     backend = cli_args.backend
     jobs = cli_args.jobs
     max_ram = cli_args.ram
     if max_ram is not None:
         max_ram *= 1024**3
 
-    blob_method = cli_args.approach
+    ch_neu = cli_args.ch
     view_blobs = cli_args.view
+    blob_method = cli_args.approach
 
     # image pixel size
     px_sz = np.array([cli_args.px_size_z, cli_args.px_size_xy, cli_args.px_size_xy])
@@ -321,7 +321,7 @@ def load_microscopy_image(cli_args):
         img = tiff.imread(img_path)
 
     # create image memory map
-    tmp_dir = tempfile.mkdtemp(dir=getcwd())
+    tmp_dir = tempfile.mkdtemp()
     if is_mmap:
         img = create_memory_map(img.shape, dtype=img.dtype, name=img_name, tmp=tmp_dir, arr=img[:], mmap_mode='r')
 
