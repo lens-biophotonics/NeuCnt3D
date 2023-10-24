@@ -3,7 +3,7 @@ from joblib import Parallel, delayed
 from neuCnt3d.detection import (config_detection_scales, correct_blob_coord,
                                 detect_soma, merge_parallel_blobs)
 from neuCnt3d.input import get_image_info
-from neuCnt3d.preprocessing import correct_image_anisotropy
+from neuCnt3d.preprocessing import correct_anisotropy
 from neuCnt3d.printing import print_analysis_info, print_results
 from neuCnt3d.slicing import (config_image_slicing, config_slice_batch,
                               crop_slice, slice_channel)
@@ -62,8 +62,9 @@ def init_napari_image(img_shape, px_rsz_ratio, tmp_dir=None, z_rng=(0, None), vi
     return neu_img, z_sel, tmp_dir
 
 
-def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, overlap, abs_thresh, rel_thresh,
-                    px_rsz_ratio, neu_img, z_sel, ch_neu=0, dark=False, mosaic=False, inv=-1, zero_thr=10, bg_thr=0.01):
+def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, blob_ovlp, slice_ovlp,
+                    abs_thresh, rel_thresh, px_rsz_ratio, neu_img, z_sel,
+                    ch_neu=0, dark=False, mosaic=False, inv=-1, zero_thr=10, bg_thr=0.01, pad_mode='reflect'):
     """
     Conduct an unsupervised neuronal body enhancement and counting on a basic slice
     selected from the whole microscopy volume image.
@@ -92,10 +93,14 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, ov
     sigma_num: int
         number of spatial scales analyzed
 
-    overlap: float
+    blob_ovlp: float
         maximum blob percentage overlap [%]
 
-    abs_thresh
+    slice_ovlp: int
+        image slice lateral overlap
+
+    abs_thresh: float
+        absolute blob intensity threshold
 
     rel_thresh: float
         minimum percentage intensity of peaks in the filtered image relative to maximum [%]
@@ -129,6 +134,9 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, ov
     bg_thr: float
         maximum relative threshold of zero pixels
 
+    pad_mode: str
+        image padding mode
+
     Returns
     -------
     blobs: numpy.ndarray (shape=(N,4))
@@ -143,19 +151,22 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, ov
     nonzero = np.count_nonzero(neu_slice > zero_thr)
     if nonzero / tot > bg_thr:
 
-        # correct pixel size anisotropy (resize XY plane)
-        iso_neu_slice, iso_neu_slice_crop, rsz_pad, rsz_border = correct_image_anisotropy(neu_slice, px_rsz_ratio, pad)
+        # correct pixel size anisotropy (resize XY-plane)
+        iso_neu_slice, rsz_pad, rsz_border, rsz_ovlp = correct_anisotropy(neu_slice, px_rsz_ratio, pad, slice_ovlp)
+
+        # pad soma slice if required
+        iso_neu_slice = np.pad(iso_neu_slice, rsz_pad, mode=pad_mode)
 
         # perform unsupervised neuron count analysis
         blobs = detect_soma(iso_neu_slice, approach=approach, min_sigma=sigma_px[0], max_sigma=sigma_px[1],
-                            num_sigma=sigma_num, overlap=overlap, threshold_rel=rel_thresh, threshold=abs_thresh,
+                            num_sigma=sigma_num, overlap=blob_ovlp, thresh_rel=rel_thresh, thresh=abs_thresh,
                             dark=dark, border=rsz_border)
 
         # add slice offset to coordinates and select z-range
-        blobs = correct_blob_coord(blobs, rng_out, rsz_pad, z_sel)
+        blobs = correct_blob_coord(blobs, rng_out, rsz_ovlp, z_sel)
 
         # crop iso_neu_slice
-        iso_neu_slice_crop = crop_slice(iso_neu_slice_crop, rng_out)
+        iso_neu_slice_crop = crop_slice(iso_neu_slice, rng_out, rsz_ovlp)
 
         # fill memory-mapped output array
         if neu_img is not None:
@@ -167,7 +178,7 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, ov
         return inv * np.ones((4,))
 
 
-def parallel_neuron_detection_on_slices(img, px_size, blob_method, diam_um, overlap, abs_thresh, rel_thresh,
+def parallel_neuron_detection_on_slices(img, px_size, blob_method, diam_um, blob_ovlp, abs_thr, rel_thr,
                                         ch_neu=0, dark=False, z_rng=(0, None), is_tiled=False, max_ram=None,
                                         jobs=0.8, backend='threading', tmp_dir=None, inv=-1, verbose=10,
                                         view=False):
@@ -190,7 +201,7 @@ def parallel_neuron_detection_on_slices(img, px_size, blob_method, diam_um, over
     diam_um: tuple
         soma diameter (minimum, maximum, step size) [μm]
 
-    ovlp: float
+    blob_ovlp: float
         maximum blob overlap percentage [%]
 
     abs_thr: float
@@ -253,26 +264,26 @@ def parallel_neuron_detection_on_slices(img, px_size, blob_method, diam_um, over
     batch_sz, max_slice_sz = config_slice_batch(blob_method, sigma_num, max_ram=max_ram, jobs=jobs)
 
     # configure the overall microscopy volume slicing
-    rng_in_lst, rng_out_lst, pad_mat_lst, slice_shape_um, px_rsz_ratio, slice_num, batch_sz = \
+    rng_in_lst, rng_out_lst, pad_mat_lst, slice_shape_um, px_rsz_ratio, slice_num, batch_sz, slice_ovlp = \
         config_image_slicing(sigma_px, img_shape, img_item_size, px_size, batch_sz, max_slice_sz)
 
     # initialize resized neuron channel image
     neu_img, z_sel, tmp_dir = init_napari_image(img_shape, px_rsz_ratio, tmp_dir=tmp_dir, z_rng=z_rng, view=view)
 
     # print analysis configuration
-    print_analysis_info(blob_method, diam_um, sigma_num, overlap, abs_thresh, rel_thresh,
+    print_analysis_info(blob_method, diam_um, sigma_num, blob_ovlp, abs_thr, rel_thr,
                         img_shape_um, slice_shape_um, slice_num, px_size, img_item_size)
 
     # parallel unsupervised neuron localization and counting on microscopy image sub-volumes
     # adapt blob thresholds
-    if abs_thresh is not None:
-        abs_thresh /= img_max
-        rel_thresh = None
+    if abs_thr is not None:
+        abs_thr /= img_max
+        rel_thr = None
     with Parallel(n_jobs=batch_sz, backend=backend, verbose=verbose, max_nbytes=None) as parallel:
         par_blobs = parallel(
             delayed(neuron_analysis)(
-                img, rng_in_lst[i], rng_out_lst[i], pad_mat_lst[i], blob_method, sigma_px, sigma_num, overlap,
-                abs_thresh, rel_thresh, px_rsz_ratio, neu_img, z_sel,
+                img, rng_in_lst[i], rng_out_lst[i], pad_mat_lst[i], blob_method, sigma_px, sigma_num, blob_ovlp,
+                slice_ovlp, abs_thr, rel_thr, px_rsz_ratio, neu_img, z_sel,
                 ch_neu=ch_neu, dark=dark, mosaic=is_tiled, inv=inv)
             for i in range(slice_num))
 

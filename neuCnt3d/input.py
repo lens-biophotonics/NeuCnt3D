@@ -235,16 +235,16 @@ def get_detection_config(cli_args, img_name):
     view_blobs: bool
         visualize point cloud in the Napari viewer
     """
-    # pipeline configuration
-    ch_neu = cli_args.ch
+    # resource configuration
     backend = cli_args.backend
     jobs = cli_args.jobs
     max_ram = cli_args.ram
     if max_ram is not None:
         max_ram *= 1024**3
 
-    blob_method = cli_args.approach
+    ch_neu = cli_args.ch
     view_blobs = cli_args.view
+    blob_method = cli_args.approach
 
     # image pixel size
     px_sz = np.array([cli_args.px_size_z, cli_args.px_size_xy, cli_args.px_size_xy])

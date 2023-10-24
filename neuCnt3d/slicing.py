@@ -5,17 +5,14 @@ import psutil
 from neuCnt3d.utils import get_available_cores
 
 
-def adjust_slice_coord(axis_iter, pad_rng, slice_shape, img_shape, axis):
+def compute_axis_range(ax_iter, slice_shape, img_shape, slice_per_dim, ax, ovlp_rng=0):
     """
     Adjust image slice coordinates at boundaries.
 
     Parameters
     ----------
-    axis_iter: int
-        iteration counter along axis
-
-    pad_rng: int
-        patch padding range [px]
+    ax_iter: tuple
+        iteration counters along axes
 
     slice_shape: numpy.ndarray (shape=(3,), dtype=int)
         shape of the basic image slices analyzed iteratively [px]
@@ -23,43 +20,56 @@ def adjust_slice_coord(axis_iter, pad_rng, slice_shape, img_shape, axis):
     img_shape: numpy.ndarray (shape=(3,), dtype=int)
         total image shape [px]
 
-    axis: int
+    slice_per_dim: numpy.ndarray (shape=(3,), dtype=int)
+        number of slices per dimension
+
+    ax: int
         axis index
+
+    ovlp_rng: int
+        slicing range
+        extension along each axis (on each side)
 
     Returns
     -------
     start: int
-        adjusted start index
+        adjusted slice start coordinate
 
     stop: int
-        adjusted stop index
+        adjusted slice stop coordinate
 
-    axis_pad_array: numpy.ndarray (shape=(2,), dtype=int)
-        axis pad range [\'left\', \'right\']
+    pad: numpy.ndarray (shape=(2,), dtype=int)
+        lower and upper padding ranges
     """
     # initialize axis pad array
-    axis_pad_array = np.zeros(shape=(2,), dtype=np.uint8)
+    pad = np.zeros(shape=(2,), dtype=int)
 
     # compute start and stop coordinates
-    start = axis_iter * slice_shape[axis] - pad_rng
-    stop = axis_iter * slice_shape[axis] + slice_shape[axis] + pad_rng
+    start = ax_iter[ax] * slice_shape[ax]
+    stop = start + slice_shape[ax]
 
     # adjust start coordinate
+    start -= ovlp_rng
     if start < 0:
+        pad[0] = -start
         start = 0
-    else:
-        axis_pad_array[0] = pad_rng
 
     # adjust stop coordinate
-    if stop > img_shape[axis]:
-        stop = img_shape[axis]
-    else:
-        axis_pad_array[1] = pad_rng
+    stop += ovlp_rng
+    if stop > img_shape[ax]:
+        pad[1] = stop - img_shape[ax]
+        stop = img_shape[ax]
 
-    return start, stop, axis_pad_array
+    # handle image shape residuals at boundaries
+    if ax_iter[ax] == slice_per_dim[ax] - 1:
+        if np.remainder(img_shape[ax], slice_shape[ax]) > 0:
+            stop = img_shape[ax]
+            pad[1] = ovlp_rng
+
+    return start, stop, pad
 
 
-def compute_slice_padding(sigma_px, px_size, pad_factor=1.0):
+def compute_slice_overlap(sigma_px, truncate=4):
     """
     Compute lateral image padding range
     for coping with blob detection boundary artifacts.
@@ -69,37 +79,28 @@ def compute_slice_padding(sigma_px, px_size, pad_factor=1.0):
     sigma_px: numpy.ndarray (shape=(2,), dtype=int)
         minimum and maximum spatial scales [px]
 
-    px_size: numpy.ndarray (shape=(3,), dtype=float)
-        pixel size [μm]
-
-    pad_factor: float
+    truncate: int
         soma diameter multiplication factor
         (pad_rng = diameter * pad_factor)
 
     Returns
     -------
-    pad_rng: int
+    ext_rng: int
         slice padding range [px]
     """
-    pad_rng = int(np.ceil(2 * np.sqrt(3) * sigma_px[1] * pad_factor / px_size[-1]))
+    ext_rng = int(np.ceil(2 * truncate * sigma_px[-1]) // 2)
 
-    return pad_rng
+    return ext_rng
 
 
-def compute_slice_range(z, y, x, slice_shape, img_shape, pad_rng=0):
+def compute_slice_range(ax_iter, slice_shape, img_shape, slice_per_dim, ovlp_rng=0):
     """
     Compute basic slice coordinates from microscopy volume image.
 
     Parameters
     ----------
-    z: int
-        z-depth index
-
-    y: int
-        row index
-
-    x: int
-        column index
+    ax_iter: tuple
+        iteration counters along axes
 
     slice_shape: numpy.ndarray (shape=(3,), dtype=int)
         shape of the basic image slices analyzed iteratively [px]
@@ -107,37 +108,37 @@ def compute_slice_range(z, y, x, slice_shape, img_shape, pad_rng=0):
     img_shape: numpy.ndarray (shape=(3,), dtype=int)
         total image shape [px]
 
-    pad_rng: int
-        slice padding range
+    slice_per_dim: numpy.ndarray (shape=(3,), dtype=int)
+        number of slices per dimension
+
+    ovlp_rng: int
+        slice sampling range
+        extension along each axis (on each side)
 
     Returns
     -------
     rng: tuple
         3D slice index ranges
 
-    pad_mat: numpy.ndarray
-        3D padding range array
+    pad: np.ndarray (shape=(3,2), dtype=int)
+        padded boundaries
     """
     # adjust original image patch coordinates
     # and generate padding range matrix
-    pad_mat = np.zeros(shape=(3, 2), dtype=np.uint8)
-    z_start, z_stop, pad_mat[0, :] = \
-        adjust_slice_coord(z, pad_rng, slice_shape, img_shape, axis=0)
-    y_start, y_stop, pad_mat[1, :] = \
-        adjust_slice_coord(y, pad_rng, slice_shape, img_shape, axis=1)
-    x_start, x_stop, pad_mat[2, :] = \
-        adjust_slice_coord(x, pad_rng, slice_shape, img_shape, axis=2)
+    dims = len(ax_iter)
+    start = np.zeros((dims,), dtype=int)
+    stop = np.zeros((dims,), dtype=int)
+    pad = np.zeros((dims, 2), dtype=int)
+    slc = tuple()
+    for ax in range(dims):
+        start[ax], stop[ax], pad[ax] = \
+            compute_axis_range(ax_iter, slice_shape, img_shape, slice_per_dim, ax=ax, ovlp_rng=ovlp_rng)
+        slc += (slice(start[ax], stop[ax], 1),)
 
-    # generate index ranges
-    z_rng = slice(z_start, z_stop, 1)
-    y_rng = slice(y_start, y_stop, 1)
-    x_rng = slice(x_start, x_stop, 1)
-    rng = np.index_exp[z_rng, y_rng, x_rng]
-    for r in rng:
-        if r.start is None:
-            return None
+    # generate tuple of slice index ranges
+    rng = np.index_exp[slc]
 
-    return rng, pad_mat
+    return rng, pad
 
 
 def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, slice_size):
@@ -187,13 +188,16 @@ def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, sl
 
     batch_size: int
         adjusted slice batch size
+
+    slice_ovlp: int
+        image slice lateral overlap
     """
     # compute input patch padding range
-    border = compute_slice_padding(sigma_px, px_size)
+    slice_ovlp = compute_slice_overlap(sigma_px)
 
     # shape of the image slices processed in parallel
     slice_shape, slice_shape_um = \
-        compute_slice_shape(img_shape, item_size, slice_size, px_sz=px_size, pad_rng=border)
+        compute_slice_shape(img_shape, item_size, slice_size, px_sz=px_size, pad_rng=slice_ovlp)
 
     # adjust output shapes according to the anisotropic pixel size correction
     px_size_iso = px_size[0] * np.ones(shape=px_size.shape)
@@ -212,16 +216,16 @@ def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, sl
     for z, y, x in product(range(slice_per_dim[0]), range(slice_per_dim[1]), range(slice_per_dim[2])):
 
         # index ranges of analyzed neuron image slices (with padding)
-        rng_in, pad_mat = \
-            compute_slice_range(z, y, x, slice_shape, img_shape, pad_rng=border)
-        if rng_in is not None:
-            rng_in_lst.append(rng_in)
-            pad_mat_lst.append(pad_mat)
+        in_rng, pad = \
+            compute_slice_range((z, y, x), slice_shape, img_shape, slice_per_dim, ovlp_rng=slice_ovlp)
+        if in_rng is not None:
+            rng_in_lst.append(in_rng)
+            pad_mat_lst.append(pad)
 
             # output index ranges
-            rng_out, _ = \
-                compute_slice_range(z, y, x, out_slice_shape, out_img_shape)
-            rng_out_lst.append(rng_out)
+            out_rng, _ = \
+                compute_slice_range((z, y, x), out_slice_shape, out_img_shape, slice_per_dim)
+            rng_out_lst.append(out_rng)
 
         # invalid image slice
         else:
@@ -231,7 +235,7 @@ def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, sl
     if batch_size > slice_num:
         batch_size = slice_num
 
-    return rng_in_lst, rng_out_lst, pad_mat_lst, slice_shape_um, px_rsz_ratio, slice_num, batch_size
+    return rng_in_lst, rng_out_lst, pad_mat_lst, slice_shape_um, px_rsz_ratio, slice_num, batch_size, slice_ovlp
 
 
 def config_slice_batch(blob_method, sigma_num, mem_fudge_factor=1.0,
@@ -307,7 +311,7 @@ def compute_slice_shape(img_shape, item_sz, max_slice_sz, px_sz=None, pad_rng=0)
     item_sz: int
         image item size [B]
 
-    max_slice_size: float
+    max_slice_sz: float
         maximum memory size of the basic slices analyzed iteratively [B]
 
     px_sz: numpy.ndarray (shape=(3,), dtype=float)
@@ -326,8 +330,8 @@ def compute_slice_shape(img_shape, item_sz, max_slice_sz, px_sz=None, pad_rng=0)
         (if px_size is provided)
     """
     slice_depth = img_shape[0]
-    slice_side = np.round(np.sqrt((max_slice_sz / (slice_depth * item_sz))) - 2 * pad_rng).astype(int)
-    slice_shape = np.array([slice_depth, slice_side, slice_side])
+    slice_side = np.round(np.sqrt((max_slice_sz / (slice_depth * item_sz))) - 2 * pad_rng)
+    slice_shape = np.array([slice_depth, slice_side, slice_side]).astype(int)
     slice_shape = np.min(np.stack((img_shape[:3], slice_shape)), axis=0)
 
     if px_sz is not None:
@@ -337,7 +341,7 @@ def compute_slice_shape(img_shape, item_sz, max_slice_sz, px_sz=None, pad_rng=0)
         return slice_shape
 
 
-def crop_slice(img_slice, rng):
+def crop_slice(img_slice, rng, slice_ovlp):
     """
     Shrink image slice at volume boundaries, for overall shape consistency.
 
@@ -349,19 +353,27 @@ def crop_slice(img_slice, rng):
     rng: tuple
         3D index range
 
+    slice_ovlp: numpy.ndarray (shape=(3,), dtype=int)
+        image slice lateral overlap
+
     Returns
     -------
     cropped_slice: numpy.ndarray
         cropped image slice
     """
+
+    # delete overlapping slice boundaries
+    img_slice = img_slice[slice_ovlp[0]:img_slice.shape[1] - slice_ovlp[0],
+                          slice_ovlp[1]:img_slice.shape[1] - slice_ovlp[1],
+                          slice_ovlp[2]:img_slice.shape[2] - slice_ovlp[2]]
+
     # check slice shape and output index ranges
     out_slice_shape = img_slice.shape
     crop_rng = np.zeros(shape=(3,), dtype=int)
     for s in range(3):
-        rsz = np.arange(rng[s].start, rng[s].stop, rng[s].step).size
-        crop_rng[s] = out_slice_shape[s] - rsz
+        crop_rng[s] = out_slice_shape[s] - np.arange(rng[s].start, rng[s].stop, rng[s].step).size
 
-    # crop slice if required
+    # crop image slice if required
     cropped_slice = img_slice[:-crop_rng[0] or None, ...]
     cropped_slice = cropped_slice[:, :-crop_rng[1] or None, :]
     cropped_slice = cropped_slice[:, :, :-crop_rng[2] or None]
