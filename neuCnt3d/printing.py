@@ -38,14 +38,14 @@ def color_text(r, g, b, text):
     return clr_text
 
 
-def print_analysis_info(approach, diam_um, sigma_num, overlap, abs_thresh, rel_thresh,
-                        img_shape_um, slice_shape_um, slice_num, px_size, img_item_size):
+def print_analysis_info(method, diam_um, sigma_num, blob_ovlp, abs_thr, rel_thr,
+                        img_shape_um, slice_shape_um, slice_num, px_sz, img_item_sz):
     """
     Print analysis configuration.
 
     Parameters
     ----------
-    approach: str
+    method: str
         blob detection approach
         (Laplacian of Gaussian or Difference of Gaussian)
 
@@ -55,13 +55,15 @@ def print_analysis_info(approach, diam_um, sigma_num, overlap, abs_thresh, rel_t
     sigma_num: int
         number of spatial scales
 
-    overlap: float
+    blob_ovlp: float
         maximum blob overlap percentage [%]
 
-    abs_thresh
+    abs_thr: float
+        absolute blob intensity threshold
 
-    rel_thresh: float
-        minimum percentage intensity of peaks in the filtered image relative to maximum [%]
+    rel_thr: float
+        minimum percentage peak intensity
+        in the filtered image relative to maximum [%]
 
     img_shape_um: numpy.ndarray (shape=(3,), dtype=float)
         volume image shape [μm]
@@ -72,10 +74,10 @@ def print_analysis_info(approach, diam_um, sigma_num, overlap, abs_thresh, rel_t
     slice_num: int
         total number of analyzed image slices
 
-    px_size: numpy.ndarray (shape=(3,), dtype=float)
+    px_sz: numpy.ndarray (shape=(3,), dtype=float)
         pixel size [μm]
 
-    img_item_size: int
+    img_item_sz: int
         image item size (in bytes)
 
     Returns
@@ -84,9 +86,9 @@ def print_analysis_info(approach, diam_um, sigma_num, overlap, abs_thresh, rel_t
     """
     print(color_text(0, 191, 255, "\n\n3D Neuronal Body Localization"))
 
-    print_blob_info(approach, diam_um, sigma_num, overlap, abs_thresh, rel_thresh)
+    print_blob_info(method, diam_um, sigma_num, blob_ovlp, abs_thr, rel_thr)
 
-    print_slicing_info(img_shape_um, slice_shape_um, slice_num, px_size, img_item_size)
+    print_slicing_info(img_shape_um, slice_shape_um, slice_num, px_sz, img_item_sz)
 
 
 def print_pipeline_heading():
@@ -100,7 +102,7 @@ def print_pipeline_heading():
     print(color_text(0, 250, 154, "\n3D Unsupervised Neuron Segmentation and Counting"))
 
 
-def print_blob_info(method, diam_um, sigma_num, overlap, abs_thresh, rel_thresh):
+def print_blob_info(method, diam_um, sigma_num, blob_ovlp, abs_thr, rel_thr):
     """
     Print blob detection information.
 
@@ -116,13 +118,15 @@ def print_blob_info(method, diam_um, sigma_num, overlap, abs_thresh, rel_thresh)
     sigma_num: int
         number of spatial scales
 
-    overlap: float
+    blob_ovlp: float
         maximum blob overlap percentage [%]
 
-    abs_thresh
+    abs_thr: float
+        absolute blob intensity threshold
 
-    rel_thresh: float
-        minimum percentage intensity of peaks in the filtered image relative to maximum [%]
+    rel_thr: float
+        minimum percentage peak intensity
+        in the filtered image relative to maximum [%]
 
     Returns
     -------
@@ -130,17 +134,19 @@ def print_blob_info(method, diam_um, sigma_num, overlap, abs_thresh, rel_thresh)
     """
     min_diam_um, max_diam_um, stp_diam_um = diam_um
 
-    if abs_thresh is not None:
-        rel_thresh = None
+    if abs_thr is not None:
+        rel_thr = None
 
     if method == 'log':
         print("\nMethod: " + color_text(0, 255, 84, "Laplacian of Gaussian"))
     elif method == 'dog':
         print("\nMethod: " + color_text(255, 126, 0, "Difference of Gaussian"))
-    print("Absolute blob threshold: {0}".format(abs_thresh))
-    if rel_thresh is not None:
-        print("Relative blob threshold: {0:.1f}%".format(100 * rel_thresh))
-    print("Maximum blob overlap:    {0:.1f}%".format(100 * overlap))
+
+    print("Absolute blob threshold: {0}".format(abs_thr))
+    if rel_thr is not None:
+        print("Relative blob threshold: {0:.1f}%".format(100 * rel_thr))
+
+    print("Maximum blob overlap:    {0:.1f}%".format(100 * blob_ovlp))
     print("Minimum diameter   [μm]: {0:.1f}".format(min_diam_um))
     print("Maximum diameter   [μm]: {0:.1f}".format(max_diam_um))
     print("Diameter step      [μm]: {0:.1f}".format(stp_diam_um))
@@ -169,7 +175,7 @@ def print_results(blobs, img_shape):
           .format(num_cell, np.floor(1e9 * num_cell / np.prod(img_shape)).astype(int)))
 
 
-def print_slicing_info(img_shape_um, slice_shape_um, slice_num, px_size, img_item_size):
+def print_slicing_info(img_shape_um, slice_shape_um, slice_num, px_sz, img_item_sz):
     """
     Print information on the slicing of the basic image sub-volumes
     iteratively processed by the Foa3D pipeline.
@@ -185,10 +191,10 @@ def print_slicing_info(img_shape_um, slice_shape_um, slice_num, px_size, img_ite
     slice_num: int
         total number of analyzed image slices
 
-    px_size: numpy.ndarray (shape=(3,), dtype=float)
+    px_sz: numpy.ndarray (shape=(3,), dtype=float)
         pixel size [μm]
 
-    img_item_size: int
+    img_item_sz: int
         image item size (in bytes)
 
     Returns
@@ -200,20 +206,20 @@ def print_slicing_info(img_shape_um, slice_shape_um, slice_num, px_size, img_ite
         slice_shape_um = img_shape_um
 
     # get image memory size
-    img_size = img_item_size * np.prod(np.divide(img_shape_um, px_size))
+    img_sz = img_item_sz * np.prod(np.divide(img_shape_um, px_sz))
 
     # get slice memory size
-    max_slice_size = img_item_size * np.prod(np.divide(slice_shape_um, px_size))
+    max_slice_sz = img_item_sz * np.prod(np.divide(slice_shape_um, px_sz))
 
     # print info
     print("\n                           Z      Y      X")
     print("Total image shape  [μm]: ({0:.1f}, {1:.1f}, {2:.1f})"
           .format(img_shape_um[0], img_shape_um[1], img_shape_um[2]))
     print("Total image size   [MB]: {0}\n"
-          .format(np.ceil(img_size / 1024**2).astype(int)))
+          .format(np.ceil(img_sz / 1024**2).astype(int)))
     print("Basic slice shape  [μm]: ({0:.1f}, {1:.1f}, {2:.1f})"
           .format(slice_shape_um[0], slice_shape_um[1], slice_shape_um[2]))
     print("Basic slice size   [MB]: {0}"
-          .format(np.ceil(max_slice_size / 1024**2).astype(int)))
+          .format(np.ceil(max_slice_sz / 1024**2).astype(int)))
     print("Basic slice number:      {0}\n"
           .format(slice_num))

@@ -134,7 +134,7 @@ def add_output_prefix(img_name, min_diam_um, max_diam_um, method):
 
     method: str
         blob detection approach
-        (Laplacian of Gaussian or Difference of Gaussian)
+        (log: Laplacian of Gaussian; or dog: Difference of Gaussian)
 
     Returns
     -------

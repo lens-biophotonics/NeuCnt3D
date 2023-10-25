@@ -120,7 +120,7 @@ def get_file_info(cli_args):
     return img_path, img_name, is_tiled, is_mmap
 
 
-def get_image_info(img, px_size, ch_neu, is_tiled=False, ch_axis=None):
+def get_image_info(img, px_sz, ch_neu, is_tiled=False, ch_axis=None):
     """
     Get information on the input microscopy volume image.
 
@@ -129,7 +129,7 @@ def get_image_info(img, px_size, ch_neu, is_tiled=False, ch_axis=None):
     img: numpy.ndarray or memory-mapped file (axis order: (Z,Y,X))
         microscopy volume image
 
-    px_size: numpy.ndarray (shape=(3,), dtype=float)
+    px_sz: numpy.ndarray (shape=(3,), dtype=float)
         pixel size [μm]
 
     ch_neu: int
@@ -149,7 +149,7 @@ def get_image_info(img, px_size, ch_neu, is_tiled=False, ch_axis=None):
     img_shape_um: numpy.ndarray (shape=(3,), dtype=float)
         volume image shape [μm]
 
-    img_item_size: int
+    img_item_sz: int
         array item size (in bytes)
 
     img_max: float
@@ -169,11 +169,11 @@ def get_image_info(img, px_size, ch_neu, is_tiled=False, ch_axis=None):
     # get info on microscopy volume image
     if ch_axis is not None:
         img_shape = np.delete(img_shape, ch_axis)
-    img_shape_um = np.multiply(img_shape, px_size)
-    img_item_size = get_item_bytes(img)
+    img_shape_um = np.multiply(img_shape, px_sz)
+    img_item_sz = get_item_bytes(img)
     img_max = np.iinfo(img.dtype).max
 
-    return img_shape, img_shape_um, img_item_size, img_max, ch_neu
+    return img_shape, img_shape_um, img_item_sz, img_max, ch_neu
 
 
 def get_detection_config(cli_args, img_name):
@@ -192,12 +192,12 @@ def get_detection_config(cli_args, img_name):
     -------
     blob_method: str
         blob detection approach
-        (Laplacian of Gaussian or Difference of Gaussian)
+        (log: Laplacian of Gaussian; or dog: Difference of Gaussian)
 
     diam_um: tuple
         soma diameter (minimum, maximum, step size) [μm]
 
-    ovlp: float
+    blob_ovlp: float
         maximum blob overlap percentage [%]
 
     abs_thr: float
@@ -257,9 +257,9 @@ def get_detection_config(cli_args, img_name):
 
     # other detection parameters
     dark = cli_args.dark
-    ovlp = 0.01 * cli_args.ovlp
     abs_thr = cli_args.abs_thr
     rel_thr = cli_args.rel_thr
+    blob_ovlp = 0.01 * cli_args.ovlp
     if rel_thr is not None:
         rel_thr *= 0.01
 
@@ -271,7 +271,7 @@ def get_detection_config(cli_args, img_name):
     # add configuration prefix to output filenames
     img_name = add_output_prefix(img_name, min_diam_um, max_diam_um, blob_method)
 
-    return blob_method, diam_um, ovlp, abs_thr, rel_thr, px_sz, \
+    return blob_method, diam_um, blob_ovlp, abs_thr, rel_thr, px_sz, \
         z_rng, ch_neu, dark, backend, max_ram, jobs, img_name, view_blobs
 
 
@@ -312,12 +312,12 @@ def load_microscopy_image(cli_args):
 
     # import microscopy tiled reconstruction (aligned using ZetaStitcher)
     if is_tiled:
-        print("Loading " + img_name + " tiled reconstruction...")
+        print("Loading {} tiled reconstruction...".format(img_name))
         img = VirtualFusedVolume(img_path)
 
     # import microscopy z-stack
     else:
-        print("Loading " + img_name + " z-stack...")
+        print("Loading {} z-stack...".format(img_name))
         img = tiff.imread(img_path)
 
     # create image memory map

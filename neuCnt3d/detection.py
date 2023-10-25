@@ -2,7 +2,7 @@ import numpy as np
 from skimage.feature import blob_dog, blob_log
 
 
-def config_detection_scales(diam_um, px_size):
+def config_detection_scales(diam_um, px_sz):
     """
     Compute the minimum and maximum standard deviation
     for the Gaussian kernel used by the blob detection algorithm.
@@ -12,7 +12,7 @@ def config_detection_scales(diam_um, px_size):
     diam_um: tuple
         soma diameter (minimum, maximum, step size) [μm]
 
-    px_size: numpy.ndarray (shape=(3,), dtype=float)
+    px_sz: numpy.ndarray (shape=(3,), dtype=float)
         pixel size [μm]
 
     Returns
@@ -25,7 +25,7 @@ def config_detection_scales(diam_um, px_size):
     """
     min_diam_um, max_diam_um, stp_diam_um = diam_um
     sigma_num = len(np.arange(min_diam_um, max_diam_um, stp_diam_um))
-    sigma_px = np.array([min_diam_um, max_diam_um]) / (2 * np.sqrt(3) * np.max(px_size))
+    sigma_px = np.array([min_diam_um, max_diam_um]) / (2 * np.sqrt(3) * np.max(px_sz))
 
     # one scale at least
     if sigma_num <= 0:
@@ -50,6 +50,7 @@ def correct_blob_coord(blobs, slice_rng, slice_ovlp, z_sel):
         image slice index range
 
     slice_ovlp: int
+        image slice lateral overlap [px]
 
     z_sel: NumPy slice object
         selected z-depth range
@@ -60,16 +61,16 @@ def correct_blob_coord(blobs, slice_rng, slice_ovlp, z_sel):
         2D array with each row representing 3 coordinate values for a 3D image,
         plus the best sigma of the Gaussian kernel which detected the blob
     """
-    # correct X, Y coordinates wrt x0, y0 offset
-    blobs[:, 0] += slice_rng[0].start - slice_ovlp[0]
-    blobs[:, 1] += slice_rng[1].start - slice_ovlp[1]
-    blobs[:, 2] += slice_rng[2].start - slice_ovlp[2]
+    # correct blob coordinates wrt x0, y0, z0 offset
+    for i in range(3):
+        blobs[:, i] += slice_rng[i].start - slice_ovlp[i]
 
-    # exclude detections out of z_sel
+    # compute mask for depth of interest
     z_msk = blobs[:, 0] >= z_sel.start
     if z_sel.stop is not None:
         z_msk = np.logical_and(z_msk, blobs[:, 0] <= z_sel.stop)
 
+    # mask out of range detections
     blobs = blobs[z_msk, :]
     blobs[:, 0] -= z_sel.start
 
@@ -77,7 +78,7 @@ def correct_blob_coord(blobs, slice_rng, slice_ovlp, z_sel):
 
 
 def detect_soma(img, min_sigma=1, max_sigma=50, num_sigma=10, sigma_ratio=1.6, approach='log',
-                thresh=None, thresh_rel=None, overlap=0.5, border=0, dark=False):
+                thresh=None, thresh_rel=None, blob_ovlp=0.5, border=0, dark=False):
     """
     Apply 3D soma segmentation filter to input volume image.
 
@@ -101,15 +102,15 @@ def detect_soma(img, min_sigma=1, max_sigma=50, num_sigma=10, sigma_ratio=1.6, a
 
     approach: str
         blob detection approach
-        (Laplacian of Gaussian or Difference of Gaussian)
+        (log: Laplacian of Gaussian; or dog: Difference of Gaussian)
 
     thresh: float
-        minimum intensity of peaks in the filtered image
+        minimum peak intensity in the filtered image
 
     thresh_rel: float
-        minimum percentage intensity of peaks in the filtered image relative to maximum [%]
+        minimum percentage peak intensity in the filtered image relative to maximum [%]
 
-    overlap: float
+    blob_ovlp: float
         maximum blob overlap percentage [%]
 
     border: tuple
@@ -125,24 +126,18 @@ def detect_soma(img, min_sigma=1, max_sigma=50, num_sigma=10, sigma_ratio=1.6, a
     blobs: numpy.ndarray (shape=(N,4))
         2D array with each row representing 3 coordinate values for a 3D image,
         plus the best sigma of the Gaussian kernel which detected the blob
-
-    NOTE:
-    modify skimage.feature.blob (line 205)
-    as follows:
-
-    return exclude_border >>> return tuple(list(exclude_border) + [0])
     """
-    # invert image
+    # invert image if required
     if dark:
         img = np.invert(img)
 
     # detect blobs
     if approach == 'log':
         blobs = blob_log(img, min_sigma=min_sigma, max_sigma=max_sigma, num_sigma=num_sigma, threshold=thresh,
-                         threshold_rel=thresh_rel, overlap=overlap, exclude_border=border)
+                         threshold_rel=thresh_rel, overlap=blob_ovlp, exclude_border=border)
     elif approach == 'dog':
         blobs = blob_dog(img, min_sigma=min_sigma, max_sigma=max_sigma, sigma_ratio=sigma_ratio, threshold=thresh,
-                         threshold_rel=thresh_rel, overlap=overlap, exclude_border=border)
+                         threshold_rel=thresh_rel, overlap=blob_ovlp, exclude_border=border)
     else:
         raise ValueError('Unrecognized blob detection approach! '
                          'This must be either "log" (Laplacian of Gaussian) or "dog" (Difference of Gaussian)...')
@@ -156,7 +151,7 @@ def detect_soma(img, min_sigma=1, max_sigma=50, num_sigma=10, sigma_ratio=1.6, a
 def merge_parallel_blobs(par_blobs, inv=-1):
     """
     Merge blobs detected by parallel processes or threads,
-    filtering out invalid background slices.
+    filtering out empty background slices.
 
     Parameters
     ----------

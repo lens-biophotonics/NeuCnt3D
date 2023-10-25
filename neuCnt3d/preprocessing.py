@@ -16,10 +16,10 @@ def correct_anisotropy(img, px_rsz_ratio, pad, slice_ovlp, anti_aliasing=True, p
         pixel resize ratio
 
     pad: numpy.ndarray (shape=(3,2), dtype=int)
-        padding range array
+        padding range along each axis side [px]
 
     slice_ovlp: int
-        image slice lateral overlap
+        image slice lateral overlap [px]
 
     anti_aliasing: bool
         apply an anti-aliasing filter when resizing the XY plane

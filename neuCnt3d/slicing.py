@@ -85,15 +85,15 @@ def compute_slice_overlap(sigma_px, truncate=4):
 
     Returns
     -------
-    ext_rng: int
-        slice padding range [px]
+    ovlp: int
+        image slice lateral overlap [px]
     """
-    ext_rng = int(np.ceil(2 * truncate * sigma_px[-1]) // 2)
+    ovlp = int(np.ceil(2 * truncate * sigma_px[-1]) // 2)
 
-    return ext_rng
+    return ovlp
 
 
-def compute_slice_range(ax_iter, slice_shape, img_shape, slice_per_dim, ovlp_rng=0):
+def compute_slice_range(ax_iter, slice_shape, img_shape, slice_per_dim, slice_ovlp=0):
     """
     Compute basic slice coordinates from microscopy volume image.
 
@@ -111,9 +111,8 @@ def compute_slice_range(ax_iter, slice_shape, img_shape, slice_per_dim, ovlp_rng
     slice_per_dim: numpy.ndarray (shape=(3,), dtype=int)
         number of slices per dimension
 
-    ovlp_rng: int
-        slice sampling range
-        extension along each axis (on each side)
+    slice_ovlp: int
+        image slice lateral overlap [px]
 
     Returns
     -------
@@ -132,7 +131,7 @@ def compute_slice_range(ax_iter, slice_shape, img_shape, slice_per_dim, ovlp_rng
     slc = tuple()
     for ax in range(dims):
         start[ax], stop[ax], pad[ax] = \
-            compute_axis_range(ax_iter, slice_shape, img_shape, slice_per_dim, ax=ax, ovlp_rng=ovlp_rng)
+            compute_axis_range(ax_iter, slice_shape, img_shape, slice_per_dim, ax=ax, ovlp_rng=slice_ovlp)
         slc += (slice(start[ax], stop[ax], 1),)
 
     # generate tuple of slice index ranges
@@ -141,7 +140,7 @@ def compute_slice_range(ax_iter, slice_shape, img_shape, slice_per_dim, ovlp_rng
     return rng, pad
 
 
-def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, slice_size):
+def config_image_slicing(sigma_px, img_shape, item_sz, px_sz, batch_sz, slice_sz):
     """
     Slicing configuration for the parallel analysis of basic chunks of the input microscopy volume.
 
@@ -153,16 +152,16 @@ def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, sl
     img_shape: numpy.ndarray (shape=(3,), dtype=int)
         total image shape [px]
 
-    item_size: int
+    item_sz: int
         image item size (in bytes)
 
-    px_size: numpy.ndarray (shape=(3,), dtype=float)
+    px_sz: numpy.ndarray (shape=(3,), dtype=float)
         pixel size [μm]
 
-    batch_size: int
+    batch_sz: int
         slice batch size
 
-    slice_size: float
+    slice_sz: float
         maximum memory size (in megabytes) of the basic image slices
         analyzed in parallel
 
@@ -190,18 +189,18 @@ def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, sl
         adjusted slice batch size
 
     slice_ovlp: int
-        image slice lateral overlap
+        image slice lateral overlap [px]
     """
     # compute input patch padding range
     slice_ovlp = compute_slice_overlap(sigma_px)
 
     # shape of the image slices processed in parallel
     slice_shape, slice_shape_um = \
-        compute_slice_shape(img_shape, item_size, slice_size, px_sz=px_size, pad_rng=slice_ovlp)
+        compute_slice_shape(img_shape, item_sz, slice_sz, px_sz=px_sz, ovlp=slice_ovlp)
 
     # adjust output shapes according to the anisotropic pixel size correction
-    px_size_iso = px_size[0] * np.ones(shape=px_size.shape)
-    px_rsz_ratio = np.divide(px_size, px_size_iso)
+    px_sz_iso = px_sz[0] * np.ones(shape=px_sz.shape)
+    px_rsz_ratio = np.divide(px_sz, px_sz_iso)
     out_img_shape = np.ceil(np.multiply(px_rsz_ratio, img_shape)).astype(int)
     out_slice_shape = np.ceil(np.multiply(px_rsz_ratio, slice_shape)).astype(int)
 
@@ -217,7 +216,7 @@ def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, sl
 
         # index ranges of analyzed neuron image slices (with padding)
         in_rng, pad = \
-            compute_slice_range((z, y, x), slice_shape, img_shape, slice_per_dim, ovlp_rng=slice_ovlp)
+            compute_slice_range((z, y, x), slice_shape, img_shape, slice_per_dim, slice_ovlp=slice_ovlp)
         if in_rng is not None:
             rng_in_lst.append(in_rng)
             pad_mat_lst.append(pad)
@@ -232,14 +231,14 @@ def config_image_slicing(sigma_px, img_shape, item_size, px_size, batch_size, sl
             slice_num -= 1
 
     # adjust slice batch size
-    if batch_size > slice_num:
-        batch_size = slice_num
+    if batch_sz > slice_num:
+        batch_sz = slice_num
 
-    return rng_in_lst, rng_out_lst, pad_mat_lst, slice_shape_um, px_rsz_ratio, slice_num, batch_size, slice_ovlp
+    return rng_in_lst, rng_out_lst, pad_mat_lst, slice_shape_um, px_rsz_ratio, slice_num, batch_sz, slice_ovlp
 
 
 def config_slice_batch(blob_method, sigma_num, mem_fudge_factor=1.0,
-                       min_slice_size=-1, jobs=0.8, max_ram=None):
+                       min_slice_sz=-1, jobs=0.8, max_ram=None):
     """
     Compute the size of the basic microscopy image slices
     and the size of the slice batches analyzed in parallel.
@@ -256,7 +255,7 @@ def config_slice_batch(blob_method, sigma_num, mem_fudge_factor=1.0,
     mem_fudge_factor: float
         memory fudge factor
 
-    min_slice_size: float
+    min_slice_sz: float
         minimum slice size [B]
 
     jobs: int
@@ -292,14 +291,14 @@ def config_slice_batch(blob_method, sigma_num, mem_fudge_factor=1.0,
 
     # get image slice size
     slice_sz = get_slice_size(max_ram, mem_growth_factor, mem_fudge_factor, batch_sz, sigma_num)
-    while slice_sz < min_slice_size:
+    while slice_sz < min_slice_sz:
         batch_sz -= 1
         slice_sz = get_slice_size(max_ram, mem_growth_factor, mem_fudge_factor, batch_sz, sigma_num)
 
     return batch_sz, slice_sz
 
 
-def compute_slice_shape(img_shape, item_sz, max_slice_sz, px_sz=None, pad_rng=0):
+def compute_slice_shape(img_shape, item_sz, max_slice_sz, px_sz=None, ovlp=0):
     """
     Compute basic image chunk shape depending on its maximum size (in bytes).
 
@@ -317,8 +316,8 @@ def compute_slice_shape(img_shape, item_sz, max_slice_sz, px_sz=None, pad_rng=0)
     px_sz: numpy.ndarray (shape=(3,), dtype=float)
         pixel size [μm]
 
-    pad_rng: int
-        slice padding range
+    ovlp: int
+        image slice lateral overlap [px]
 
     Returns
     -------
@@ -330,7 +329,7 @@ def compute_slice_shape(img_shape, item_sz, max_slice_sz, px_sz=None, pad_rng=0)
         (if px_size is provided)
     """
     slice_depth = img_shape[0]
-    slice_side = np.round(np.sqrt((max_slice_sz / (slice_depth * item_sz))) - 2 * pad_rng)
+    slice_side = np.round(np.sqrt((max_slice_sz / (slice_depth * item_sz))) - 2 * ovlp)
     slice_shape = np.array([slice_depth, slice_side, slice_side]).astype(int)
     slice_shape = np.min(np.stack((img_shape[:3], slice_shape)), axis=0)
 
@@ -354,7 +353,7 @@ def crop_slice(img_slice, rng, slice_ovlp):
         3D index range
 
     slice_ovlp: numpy.ndarray (shape=(3,), dtype=int)
-        image slice lateral overlap
+        image slice lateral overlap [px]
 
     Returns
     -------
@@ -415,7 +414,7 @@ def get_slice_size(max_ram, mem_growth_factor, mem_fudge_factor, batch_sz, num_s
     return slice_sz
 
 
-def slice_channel(img, rng, ch, mosaic=False):
+def slice_channel(img, rng, ch, is_tiled=False):
     """
     Slice desired channel from input image volume.
 
@@ -430,7 +429,7 @@ def slice_channel(img, rng, ch, mosaic=False):
     ch: int
         neuronal body channel
 
-    mosaic: bool
+    is_tiled: bool
         True for tiled reconstructions aligned using ZetaStitcher
 
     Returns
@@ -443,9 +442,6 @@ def slice_channel(img, rng, ch, mosaic=False):
     if ch is None:
         img_slice = img[z_rng, r_rng, c_rng]
     else:
-        if mosaic:
-            img_slice = img[z_rng, ch, r_rng, c_rng]
-        else:
-            img_slice = img[z_rng, r_rng, c_rng, ch]
+        img_slice = img[z_rng, ch, r_rng, c_rng] if is_tiled else img[z_rng, r_rng, c_rng, ch]
 
     return img_slice

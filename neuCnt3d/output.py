@@ -43,7 +43,7 @@ def create_save_dir(img_path, img_name):
     return save_dir
 
 
-def save_soma(blobs, px_size, save_dir, save_name):
+def save_soma(blobs, px_sz, save_dir, save_name):
     """
     Save detected soma coordinates and radii to log file.
 
@@ -53,7 +53,7 @@ def save_soma(blobs, px_size, save_dir, save_name):
         2D array with each row representing 3 coordinate values for a 3D image,
         plus the best sigma of the Gaussian kernel which detected the blob
 
-    px_size: numpy.ndarray (shape=(3,), dtype=float)
+    px_sz: numpy.ndarray (shape=(3,), dtype=float)
         pixel size [μm]
 
     save_dir: str
@@ -66,10 +66,10 @@ def save_soma(blobs, px_size, save_dir, save_name):
     -------
     None
     """
-    # convert to [μm]
-    blobs = blobs * px_size[0]
+    # convert blob coordinates to [μm]
+    blobs = blobs * px_sz[0]
 
-    # save to .csv
+    # export coordinates to .csv
     df = pd.DataFrame({'z [μm]': blobs[:, 0], 'y [μm]': blobs[:, 1], 'x [μm]': blobs[:, 2], 'rad [μm]': blobs[:, 3]})
     df.to_csv(path.join(save_dir, save_name + '.csv'), mode='a', sep=';', index=False, header=True)
 
@@ -89,7 +89,7 @@ def view_soma(blobs, neu_img, method, edge_width=0.1):
 
     method: str
         blob detection approach
-        (Laplacian of Gaussian or Difference of Gaussian)
+        (log: Laplacian of Gaussian; or dog: Difference of Gaussian)
 
     edge_width: float
         relative width of the disc symbol edge

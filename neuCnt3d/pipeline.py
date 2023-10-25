@@ -62,9 +62,9 @@ def init_napari_image(img_shape, px_rsz_ratio, tmp_dir=None, z_rng=(0, None), vi
     return neu_img, z_sel, tmp_dir
 
 
-def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, blob_ovlp, slice_ovlp,
-                    abs_thresh, rel_thresh, px_rsz_ratio, neu_img, z_sel,
-                    ch_neu=0, dark=False, mosaic=False, inv=-1, zero_thr=10, bg_thr=0.01, pad_mode='reflect'):
+def neuron_analysis(img, rng_in, rng_out, pad, method, sigma_px, sigma_num, blob_ovlp, slice_ovlp, abs_thr, rel_thr,
+                    px_rsz_ratio, neu_img, z_sel, ch_neu=0, dark=False, is_tiled=False,
+                    inv=-1, zero_thr=10, bg_thr=0.01, pad_mode='reflect'):
     """
     Conduct an unsupervised neuronal body enhancement and counting on a basic slice
     selected from the whole microscopy volume image.
@@ -83,9 +83,9 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, bl
     pad: numpy.ndarray (shape=(Z,Y,X))
         3D image padding range
 
-    approach: str
+    method: str
         blob detection approach
-        (Laplacian of Gaussian or Difference of Gaussian)
+        (log: Laplacian of Gaussian; or dog: Difference of Gaussian)
 
     sigma_px: numpy.ndarray (shape=(2,), dtype=int)
         minimum and maximum spatial scales [px]
@@ -97,12 +97,12 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, bl
         maximum blob percentage overlap [%]
 
     slice_ovlp: int
-        image slice lateral overlap
+        image slice lateral overlap [px]
 
-    abs_thresh: float
+    abs_thr: float
         absolute blob intensity threshold
 
-    rel_thresh: float
+    rel_thr: float
         minimum percentage intensity of peaks in the filtered image relative to maximum [%]
 
     px_rsz_ratio: numpy.ndarray (shape=(3,), dtype=float)
@@ -121,7 +121,7 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, bl
         if True, detect dark 3D blob-like structures
         (i.e., negative contrast polarity)
 
-    mosaic: bool
+    is_tiled: bool
         must be True for tiled reconstructions aligned using ZetaStitcher
 
     inv: int or float
@@ -144,7 +144,7 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, bl
         plus the best sigma of the Gaussian kernel which detected the blob
     """
     # slice neuron image
-    neu_slice = slice_channel(img, rng_in, ch=ch_neu, mosaic=mosaic)
+    neu_slice = slice_channel(img, rng_in, ch=ch_neu, is_tiled=is_tiled)
 
     # skip background
     tot = np.prod(neu_slice.shape)
@@ -158,8 +158,8 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, bl
         iso_neu_slice = np.pad(iso_neu_slice, rsz_pad, mode=pad_mode)
 
         # perform unsupervised neuron count analysis
-        blobs = detect_soma(iso_neu_slice, approach=approach, min_sigma=sigma_px[0], max_sigma=sigma_px[1],
-                            num_sigma=sigma_num, overlap=blob_ovlp, thresh_rel=rel_thresh, thresh=abs_thresh,
+        blobs = detect_soma(iso_neu_slice, approach=method, min_sigma=sigma_px[0], max_sigma=sigma_px[1],
+                            num_sigma=sigma_num, blob_ovlp=blob_ovlp, thresh_rel=rel_thr, thresh=abs_thr,
                             dark=dark, border=rsz_border)
 
         # add slice offset to coordinates and select z-range
@@ -178,7 +178,7 @@ def neuron_analysis(img, rng_in, rng_out, pad, approach, sigma_px, sigma_num, bl
         return inv * np.ones((4,))
 
 
-def parallel_neuron_detection_on_slices(img, px_size, blob_method, diam_um, blob_ovlp, abs_thr, rel_thr,
+def parallel_neuron_detection_on_slices(img, px_sz, method, diam_um, blob_ovlp, abs_thr, rel_thr,
                                         ch_neu=0, dark=False, z_rng=(0, None), is_tiled=False, max_ram=None,
                                         jobs=0.8, backend='threading', tmp_dir=None, inv=-1, verbose=10,
                                         view=False):
@@ -191,12 +191,12 @@ def parallel_neuron_detection_on_slices(img, px_size, blob_method, diam_um, blob
     img: numpy.ndarray or memory-mapped file (axis order: (Z,Y,X))
         microscopy volume image
 
-    px_size: numpy.ndarray (shape=(3,), dtype=float)
+    px_sz: numpy.ndarray (shape=(3,), dtype=float)
         pixel size [μm]
 
-    blob_method: str
+    method: str
         blob detection approach
-        (Laplacian of Gaussian or Difference of Gaussian)
+        (log: Laplacian of Gaussian; or dog: Difference of Gaussian)
 
     diam_um: tuple
         soma diameter (minimum, maximum, step size) [μm]
@@ -208,13 +208,14 @@ def parallel_neuron_detection_on_slices(img, px_size, blob_method, diam_um, blob
         absolute blob intensity threshold
 
     rel_thr: float
-        minimum percentage intensity of peaks in the filtered image relative to maximum [%]
+        minimum percentage peak intensity
+        in the filtered image relative to maximum [%]
 
     ch_neu: int
         neuronal bodies channel
 
     dark: bool
-        if True, enhance black 3D blob-like structures
+        if True, detect black 3D blob-like structures
         (i.e., negative contrast polarity)
 
     z_rng: int
@@ -243,7 +244,7 @@ def parallel_neuron_detection_on_slices(img, px_size, blob_method, diam_um, blob
         verbosity level
 
     view: bool
-        visualize point cloud in the Napari viewer
+        visualize soma point cloud in the Napari viewer
 
     Returns
     -------
@@ -255,24 +256,24 @@ def parallel_neuron_detection_on_slices(img, px_size, blob_method, diam_um, blob
         resized soma channel image with isotropic pixel size
     """
     # get info on the input volume image
-    img_shape, img_shape_um, img_item_size, img_max, ch_neu = get_image_info(img, px_size, ch_neu, is_tiled=is_tiled)
+    img_shape, img_shape_um, img_item_size, img_max, ch_neu = get_image_info(img, px_sz, ch_neu, is_tiled=is_tiled)
 
     # compute the scale range adopted by the blob detection stage
-    sigma_px, sigma_num = config_detection_scales(diam_um, px_size)
+    sigma_px, sigma_num = config_detection_scales(diam_um, px_sz)
 
     # configure batch of basic image slices to be analyzed in parallel
-    batch_sz, max_slice_sz = config_slice_batch(blob_method, sigma_num, max_ram=max_ram, jobs=jobs)
+    batch_sz, max_slice_sz = config_slice_batch(method, sigma_num, max_ram=max_ram, jobs=jobs)
 
     # configure the overall microscopy volume slicing
     rng_in_lst, rng_out_lst, pad_mat_lst, slice_shape_um, px_rsz_ratio, slice_num, batch_sz, slice_ovlp = \
-        config_image_slicing(sigma_px, img_shape, img_item_size, px_size, batch_sz, max_slice_sz)
+        config_image_slicing(sigma_px, img_shape, img_item_size, px_sz, batch_sz, max_slice_sz)
 
     # initialize resized neuron channel image
     neu_img, z_sel, tmp_dir = init_napari_image(img_shape, px_rsz_ratio, tmp_dir=tmp_dir, z_rng=z_rng, view=view)
 
     # print analysis configuration
-    print_analysis_info(blob_method, diam_um, sigma_num, blob_ovlp, abs_thr, rel_thr,
-                        img_shape_um, slice_shape_um, slice_num, px_size, img_item_size)
+    print_analysis_info(method, diam_um, sigma_num, blob_ovlp, abs_thr, rel_thr,
+                        img_shape_um, slice_shape_um, slice_num, px_sz, img_item_size)
 
     # parallel unsupervised neuron localization and counting on microscopy image sub-volumes
     # adapt blob thresholds
@@ -282,9 +283,9 @@ def parallel_neuron_detection_on_slices(img, px_size, blob_method, diam_um, blob
     with Parallel(n_jobs=batch_sz, backend=backend, verbose=verbose, max_nbytes=None) as parallel:
         par_blobs = parallel(
             delayed(neuron_analysis)(
-                img, rng_in_lst[i], rng_out_lst[i], pad_mat_lst[i], blob_method, sigma_px, sigma_num, blob_ovlp,
+                img, rng_in_lst[i], rng_out_lst[i], pad_mat_lst[i], method, sigma_px, sigma_num, blob_ovlp,
                 slice_ovlp, abs_thr, rel_thr, px_rsz_ratio, neu_img, z_sel,
-                ch_neu=ch_neu, dark=dark, mosaic=is_tiled, inv=inv)
+                ch_neu=ch_neu, dark=dark, is_tiled=is_tiled, inv=inv)
             for i in range(slice_num))
 
     # concatenate parallel results
