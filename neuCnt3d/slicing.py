@@ -328,8 +328,10 @@ def compute_slice_shape(img_shape, item_sz, max_slice_sz, px_sz=None, ovlp=0):
         shape of the basic image slices analyzed in parallel [μm]
         (if px_size is provided)
     """
-    slice_depth = img_shape[0]
-    slice_side = np.round(np.sqrt((max_slice_sz / (slice_depth * item_sz))) - 2 * ovlp)
+
+    tot_ovlp = 2 * ovlp
+    slice_depth = img_shape[0] + tot_ovlp
+    slice_side = np.round(np.sqrt((max_slice_sz / (slice_depth * item_sz))) - tot_ovlp)
     slice_shape = np.array([slice_depth, slice_side, slice_side]).astype(int)
     slice_shape = np.min(np.stack((img_shape[:3], slice_shape)), axis=0)
 

@@ -2,6 +2,7 @@ import argparse
 import tempfile
 
 import numpy as np
+import psutil
 import tifffile as tiff
 
 try:
@@ -323,7 +324,15 @@ def load_microscopy_image(cli_args):
     # create image memory map
     tmp_dir = tempfile.mkdtemp()
     if is_mmap:
-        img = create_memory_map(img.shape, dtype=img.dtype, name=img_name, tmp=tmp_dir, arr=img[:], mmap_mode='r')
+
+        # check available RAM
+        ram = psutil.virtual_memory()[1]
+        item_sz = get_item_bytes(img)
+        vol_sz = item_sz * np.prod(img.shape)
+
+        # create memory-mapped array depending on available resources
+        if vol_sz < ram:
+            img = create_memory_map(img.shape, dtype=img.dtype, name=img_name, tmp=tmp_dir, arr=img[:], mmap_mode='r')
 
     # create saving directory
     save_dir = create_save_dir(img_path, img_name)
