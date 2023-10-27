@@ -281,7 +281,9 @@ def config_slice_batch(blob_method, sigma_num, mem_fudge_factor=1.0,
     num_cpu = get_available_cores()
 
     # initialize slice batch size
-    batch_sz = min(jobs, num_cpu)
+    batch_sz = min(jobs // sigma_num, num_cpu)
+    if batch_sz == 0:
+        batch_sz = 1
 
     # select memory growth factor
     if blob_method == 'log':
