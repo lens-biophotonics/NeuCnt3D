@@ -39,16 +39,23 @@ def correct_anisotropy(img, px_rsz_ratio, pad, slice_ovlp, anti_aliasing=True, p
         each element of the tuple will exclude peaks from within exclude_border-pixels
         of the border of the image along that dimension
     """
-    # lateral resizing
-    iso_shape = np.ceil(np.multiply(np.asarray(img.shape), px_rsz_ratio)).astype(int)
-    iso_img = np.zeros(shape=iso_shape, dtype=img.dtype)
-    for z in range(iso_shape[0]):
-        iso_img[z, ...] = \
-            resize(img[z, ...], output_shape=tuple(iso_shape[1:]),
-                   anti_aliasing=anti_aliasing, preserve_range=preserve_range)
+    # no resizing
+    if np.all(px_rsz_ratio == 1):
+        iso_img = img
+        rsz_pad = pad
 
-    # get resized image padding matrix
-    rsz_pad = (np.floor(np.multiply(np.array([px_rsz_ratio, px_rsz_ratio]).transpose(), pad))).astype(int)
+    else:
+
+        # lateral resizing
+        iso_shape = np.ceil(np.multiply(np.asarray(img.shape), px_rsz_ratio)).astype(int)
+        iso_img = np.zeros(shape=iso_shape, dtype=img.dtype)
+        for z in range(iso_shape[0]):
+            iso_img[z, ...] = \
+                resize(img[z, ...], output_shape=tuple(iso_shape[1:]),
+                       anti_aliasing=anti_aliasing, preserve_range=preserve_range)
+
+        # get resized image padding matrix
+        rsz_pad = (np.floor(np.multiply(np.array([px_rsz_ratio, px_rsz_ratio]).transpose(), pad))).astype(int)
 
     # get resized slice lateral overlap
     rsz_slice_ovlp = np.multiply(np.array([slice_ovlp, slice_ovlp, slice_ovlp]), px_rsz_ratio).astype(int)

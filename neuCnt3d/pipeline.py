@@ -55,7 +55,10 @@ def init_napari_image(img_shape, px_rsz_ratio, tmp_dir=None, z_rng=(0, None), vi
 
     # neuron channel memory map
     if view:
+
+        # TODO: initialize an HDF5 dataset for too large arrays (compared to RAM), as done in the Foa3D tool
         neu_img = create_memory_map(out_shape, dtype='uint8', name='tmp_neu_img', tmp=tmp_dir)
+
     else:
         neu_img = None
 
