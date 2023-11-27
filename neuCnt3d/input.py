@@ -64,10 +64,12 @@ def get_cli_args():
                             help='maximum soma diameter of interest [μm]')
     cli_parser.add_argument('--stp-diam', type=float, default=5.0,
                             help='diameter step size [μm]')
-    cli_parser.add_argument('--rel-thr', type=float, default=None,
-                            help='minimum percentage intensity of peaks in the filtered image relative to maximum [%%]')
-    cli_parser.add_argument('--abs-thr', type=float, default=None,
-                            help='minimum intensity of peaks in the filtered image')
+    cli_parser.add_argument('--rel-loc-thr', type=float, default=None,
+                            help='minimum percentage intensity of peaks in the filtered image '
+                                 'relative to slice maximum [%%]')
+    cli_parser.add_argument('--rel-glob-thr', type=float, default=0,
+                            help='minimum percentage intensity of peaks in the filtered image '
+                                 'relative to global maximum [%%]')
     cli_parser.add_argument('--px-size-xy', type=float, default=0.878, help='lateral pixel size [μm]')
     cli_parser.add_argument('--px-size-z', type=float, default=1.0, help='longitudinal pixel size [μm]')
     cli_parser.add_argument('--z-min', type=float, default=0, help='forced minimum output z-depth [μm]')
@@ -201,11 +203,13 @@ def get_detection_config(cli_args, img_name):
     blob_ovlp: float
         maximum blob overlap percentage [%]
 
-    abs_thr: float
-        absolute blob intensity threshold
+    rel_glob_thr: float
+        minimum intensity of peaks in the filtered image
+        relative to global maximum
 
     rel_thr: float
-        minimum percentage intensity of peaks in the filtered image relative to maximum [%]
+        minimum intensity of peaks in the filtered image
+        relative to local slice maximum
 
     px_sz: numpy.ndarray (shape=(3,), dtype=float)
         pixel size [μm]
@@ -258,11 +262,13 @@ def get_detection_config(cli_args, img_name):
 
     # other detection parameters
     dark = cli_args.dark
-    abs_thr = cli_args.abs_thr
-    rel_thr = cli_args.rel_thr
+    rel_glob_thr = cli_args.rel_glob_thr
+    rel_loc_thr = cli_args.rel_loc_thr
     blob_ovlp = 0.01 * cli_args.ovlp
-    if rel_thr is not None:
-        rel_thr *= 0.01
+    if rel_loc_thr is not None:
+        rel_loc_thr *= 0.01
+    if rel_glob_thr is not None:
+        rel_glob_thr *= 0.01
 
     # forced output z-range
     z_min = int(np.floor(cli_args.z_min / px_sz[0]))
@@ -272,7 +278,7 @@ def get_detection_config(cli_args, img_name):
     # add configuration prefix to output filenames
     img_name = add_output_prefix(img_name, min_diam_um, max_diam_um, blob_method)
 
-    return blob_method, diam_um, blob_ovlp, abs_thr, rel_thr, px_sz, \
+    return blob_method, diam_um, blob_ovlp, rel_glob_thr, rel_loc_thr, px_sz, \
         z_rng, ch_neu, dark, backend, max_ram, jobs, img_name, view_blobs
 
 

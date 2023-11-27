@@ -12,12 +12,12 @@ def neuCnt3D(cli_args):
     img, is_tiled, cli_args, save_dir, tmp_dir, img_name = load_microscopy_image(cli_args)
 
     # get analysis configuration
-    blob_method, diam_um, ovlp, abs_thr, rel_thr, px_sz, z_rng, ch_neu, dark, \
+    blob_method, diam_um, ovlp, rel_glob_thr, rel_loc_thr, px_sz, z_rng, ch_neu, dark, \
         backend, max_ram, jobs, out_name, view = get_detection_config(cli_args, img_name)
 
     # perform parallel unsupervised blob detection on batches of basic image slices
     blobs, neu_img = \
-        parallel_neuron_detection_on_slices(img, px_sz, blob_method, diam_um, ovlp, abs_thr, rel_thr,
+        parallel_neuron_detection_on_slices(img, px_sz, blob_method, diam_um, ovlp, rel_glob_thr, rel_loc_thr,
                                             ch_neu=ch_neu, dark=dark, z_rng=z_rng, is_tiled=is_tiled,
                                             max_ram=max_ram, jobs=jobs, backend=backend, tmp_dir=tmp_dir, view=view)
 

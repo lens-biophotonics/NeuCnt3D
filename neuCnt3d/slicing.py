@@ -289,7 +289,7 @@ def config_slice_batch(blob_method, sigma_num, mem_fudge_factor=1.0,
     if blob_method == 'log':
         mem_growth_factor = 5.0
     elif blob_method == 'dog':
-        mem_growth_factor = 1.0
+        mem_growth_factor = 3.0
 
     # get image slice size
     slice_sz = get_slice_size(max_ram, mem_growth_factor, mem_fudge_factor, batch_sz, sigma_num)

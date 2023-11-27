@@ -62,8 +62,8 @@ def print_analysis_info(method, diam_um, sigma_num, blob_ovlp, abs_thr, rel_thr,
         absolute blob intensity threshold
 
     rel_thr: float
-        minimum percentage peak intensity
-        in the filtered image relative to maximum [%]
+        minimum peak intensity
+        in the filtered image relative to maximum
 
     img_shape_um: numpy.ndarray (shape=(3,), dtype=float)
         volume image shape [μm]
@@ -134,15 +134,13 @@ def print_blob_info(method, diam_um, sigma_num, blob_ovlp, abs_thr, rel_thr):
     """
     min_diam_um, max_diam_um, stp_diam_um = diam_um
 
-    if abs_thr is not None:
-        rel_thr = None
-
     if method == 'log':
         print("\nMethod: " + color_text(0, 255, 84, "Laplacian of Gaussian"))
     elif method == 'dog':
         print("\nMethod: " + color_text(255, 126, 0, "Difference of Gaussian"))
 
-    print("Absolute blob threshold: {0}".format(abs_thr))
+    if abs_thr is not None:
+        print("Absolute blob threshold: {0:.1f}".format(abs_thr))
     if rel_thr is not None:
         print("Relative blob threshold: {0:.1f}%".format(100 * rel_thr))
 
