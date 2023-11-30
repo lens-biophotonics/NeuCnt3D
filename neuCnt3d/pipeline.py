@@ -67,7 +67,7 @@ def init_napari_image(img_shape, px_rsz_ratio, tmp_dir=None, z_rng=(0, None), vi
 
 def neuron_analysis(img, rng_in, rng_out, pad, method, sigma_px, sigma_num, blob_ovlp, slice_ovlp, abs_thr, rel_thr,
                     px_rsz_ratio, neu_img, z_sel, ch_neu=0, dark=False, is_tiled=False,
-                    inv=-1, zero_thr=10, bg_thr=0.01, pad_mode='reflect'):
+                    inv=-1, zero_thr=1, bg_thr=0.01, pad_mode='reflect'):
     """
     Conduct an unsupervised neuronal body enhancement and counting on a basic slice
     selected from the whole microscopy volume image.

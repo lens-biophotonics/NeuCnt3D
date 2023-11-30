@@ -366,7 +366,7 @@ def crop_slice(img_slice, rng, slice_ovlp):
     """
 
     # delete overlapping slice boundaries
-    img_slice = img_slice[slice_ovlp[0]:img_slice.shape[1] - slice_ovlp[0],
+    img_slice = img_slice[slice_ovlp[0]:img_slice.shape[0] - slice_ovlp[0],
                           slice_ovlp[1]:img_slice.shape[1] - slice_ovlp[1],
                           slice_ovlp[2]:img_slice.shape[2] - slice_ovlp[2]]
 
