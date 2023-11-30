@@ -74,7 +74,7 @@ def save_soma(blobs, px_sz, save_dir, save_name):
     df.to_csv(path.join(save_dir, save_name + '.csv'), mode='a', sep=';', index=False, header=True)
 
 
-def view_soma(blobs, neu_img, method, edge_width=0.1):
+def view_soma(blobs, neu_img, method, edge_width=0.25):
     """
     Display the detected soma in the Napari viewer.
 

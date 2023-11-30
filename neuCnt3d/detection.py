@@ -68,7 +68,7 @@ def correct_blob_coord(blobs, slice_rng, slice_ovlp, z_sel):
     # compute mask for depth of interest
     z_msk = blobs[:, 0] >= z_sel.start
     if z_sel.stop is not None:
-        z_msk = np.logical_and(z_msk, blobs[:, 0] <= z_sel.stop)
+        z_msk = np.logical_and(z_msk, blobs[:, 0] < z_sel.stop)
 
     # mask out of range detections
     blobs = blobs[z_msk, :]
