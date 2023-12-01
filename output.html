@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>neuCnt3d.output &mdash; NeuCnt3D 0.1.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+        <script src="https://docs.python.org/3/_static/copybutton.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="neuCnt3d.pipeline" href="pipeline.html" />
+    <link rel="prev" title="neuCnt3d.input" href="input.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            NeuCnt3D
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Python module index</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="detection.html">neuCnt3d.detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input.html">neuCnt3d.input</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">neuCnt3d.output</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#neuCnt3d.output.create_save_dir"><code class="docutils literal notranslate"><span class="pre">create_save_dir()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#neuCnt3d.output.save_soma"><code class="docutils literal notranslate"><span class="pre">save_soma()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#neuCnt3d.output.view_soma"><code class="docutils literal notranslate"><span class="pre">view_soma()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="pipeline.html">neuCnt3d.pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocessing.html">neuCnt3d.preprocessing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="printing.html">neuCnt3d.printing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slicing.html">neuCnt3d.slicing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html">neuCnt3d.utils</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">NeuCnt3D</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">Python module index</a></li>
+      <li class="breadcrumb-item active">neuCnt3d.output</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/output.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-neuCnt3d.output">
+<span id="neucnt3d-output"></span><h1>neuCnt3d.output<a class="headerlink" href="#module-neuCnt3d.output" title="Permalink to this heading">¶</a></h1>
+<dl class="py function">
+<dt class="sig sig-object py" id="neuCnt3d.output.create_save_dir">
+<span class="sig-prename descclassname"><span class="pre">neuCnt3d.output.</span></span><span class="sig-name descname"><span class="pre">create_save_dir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">img_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#neuCnt3d.output.create_save_dir" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create saving directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – path to input microscopy volume image</p></li>
+<li><p><strong>img_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – name of the input microscopy volume image</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>save_dir</strong> – saving directory</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="neuCnt3d.output.save_soma">
+<span class="sig-prename descclassname"><span class="pre">neuCnt3d.output.</span></span><span class="sig-name descname"><span class="pre">save_soma</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">blobs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">px_sz</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#neuCnt3d.output.save_soma" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save detected soma coordinates and radii to log file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>blobs</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><em>numpy.ndarray</em></a><em> (</em><em>shape=</em><em>(</em><em>N</em><em>,</em><em>4</em><em>)</em><em>)</em>) – 2D array with each row representing 3 coordinate values for a 3D image,
+plus the best sigma of the Gaussian kernel which detected the blob</p></li>
+<li><p><strong>px_sz</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><em>numpy.ndarray</em></a><em> (</em><em>shape=</em><em>(</em><em>3</em><em>,</em><em>)</em><em>, </em><em>dtype=float</em><em>)</em>) – pixel size [μm]</p></li>
+<li><p><strong>save_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – saving directory</p></li>
+<li><p><strong>save_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – saved filename</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="neuCnt3d.output.view_soma">
+<span class="sig-prename descclassname"><span class="pre">neuCnt3d.output.</span></span><span class="sig-name descname"><span class="pre">view_soma</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">blobs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neu_img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.25</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#neuCnt3d.output.view_soma" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display the detected soma in the Napari viewer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>blobs</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><em>numpy.ndarray</em></a><em> (</em><em>shape=</em><em>(</em><em>N</em><em>,</em><em>4</em><em>)</em><em>)</em>) – 2D array with each row representing 3 coordinate values for a 3D image,
+plus the best sigma of the Gaussian kernel which detected the blob</p></li>
+<li><p><strong>neu_img</strong> (<em>memory-mapped file</em><em> (</em><em>axis order:</em><em> (</em><em>Z</em><em>,</em><em>Y</em><em>,</em><em>X</em><em>)</em><em>, </em><em>dtype=uint8</em><em>)</em>) – soma channel image</p></li>
+<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – blob detection approach
+(log: Laplacian of Gaussian; or dog: Difference of Gaussian)</p></li>
+<li><p><strong>edge_width</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – relative width of the disc symbol edge</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="input.html" class="btn btn-neutral float-left" title="neuCnt3d.input" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="pipeline.html" class="btn btn-neutral float-right" title="neuCnt3d.pipeline" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Michele Sorelli.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>neuCnt3d.input &mdash; NeuCnt3D 0.1.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+        <script src="https://docs.python.org/3/_static/copybutton.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="neuCnt3d.output" href="output.html" />
+    <link rel="prev" title="neuCnt3d.detection" href="detection.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            NeuCnt3D
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Python module index</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="detection.html">neuCnt3d.detection</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">neuCnt3d.input</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#neuCnt3d.input.CustomFormatter"><code class="docutils literal notranslate"><span class="pre">CustomFormatter</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#neuCnt3d.input.get_cli_args"><code class="docutils literal notranslate"><span class="pre">get_cli_args()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#neuCnt3d.input.get_detection_config"><code class="docutils literal notranslate"><span class="pre">get_detection_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#neuCnt3d.input.get_file_info"><code class="docutils literal notranslate"><span class="pre">get_file_info()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#neuCnt3d.input.get_image_info"><code class="docutils literal notranslate"><span class="pre">get_image_info()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#neuCnt3d.input.load_microscopy_image"><code class="docutils literal notranslate"><span class="pre">load_microscopy_image()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="output.html">neuCnt3d.output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pipeline.html">neuCnt3d.pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocessing.html">neuCnt3d.preprocessing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="printing.html">neuCnt3d.printing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slicing.html">neuCnt3d.slicing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html">neuCnt3d.utils</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">NeuCnt3D</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">Python module index</a></li>
+      <li class="breadcrumb-item active">neuCnt3d.input</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/input.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-neuCnt3d.input">
+<span id="neucnt3d-input"></span><h1>neuCnt3d.input<a class="headerlink" href="#module-neuCnt3d.input" title="Permalink to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="neuCnt3d.input.CustomFormatter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">neuCnt3d.input.</span></span><span class="sig-name descname"><span class="pre">CustomFormatter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prog</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">indent_increment</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_help_position</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">24</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#neuCnt3d.input.CustomFormatter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="neuCnt3d.input.get_cli_args">
+<span class="sig-prename descclassname"><span class="pre">neuCnt3d.input.</span></span><span class="sig-name descname"><span class="pre">get_cli_args</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#neuCnt3d.input.get_cli_args" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse command line arguments.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>cli_args</strong> – populated namespace of command line arguments</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>see ArgumentParser.parse_args</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="neuCnt3d.input.get_detection_config">
+<span class="sig-prename descclassname"><span class="pre">neuCnt3d.input.</span></span><span class="sig-name descname"><span class="pre">get_detection_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cli_args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">img_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#neuCnt3d.input.get_detection_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve the NeuCnt3D tool configuration.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cli_args</strong> (<em>see ArgumentParser.parse_args</em>) – populated namespace of command line arguments</p></li>
+<li><p><strong>img_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – name of the input microscopy volume image</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>blob_method</strong> (<em>str</em>) – blob detection approach
+(log: Laplacian of Gaussian; or dog: Difference of Gaussian)</p></li>
+<li><p><strong>diam_um</strong> (<em>tuple</em>) – soma diameter (minimum, maximum, step size) [μm]</p></li>
+<li><p><strong>blob_ovlp</strong> (<em>float</em>) – maximum blob overlap percentage [%]</p></li>
+<li><p><strong>rel_glob_thr</strong> (<em>float</em>) – minimum intensity of peaks in the filtered image
+relative to global maximum</p></li>
+<li><p><strong>rel_thr</strong> (<em>float</em>) – minimum intensity of peaks in the filtered image
+relative to local slice maximum</p></li>
+<li><p><strong>px_sz</strong> (<em>numpy.ndarray (shape=(3,), dtype=float)</em>) – pixel size [μm]</p></li>
+<li><p><strong>z_rng</strong> (<em>int</em>) – output z-range in [px]</p></li>
+<li><p><strong>ch_neu</strong> (<em>int</em>) – neuronal body channel (RGB image)</p></li>
+<li><p><strong>dark</strong> (<em>bool</em>) – if True, detect dark 3D blob-like structures
+(i.e., negative contrast polarity)</p></li>
+<li><p><strong>backend</strong> (<em>str</em>) – supported parallelization backend implementations:
+loky, multiprocessing or threading</p></li>
+<li><p><strong>max_ram</strong> (<em>float</em>) – maximum RAM available to the blob detection stage [B]</p></li>
+<li><p><strong>jobs</strong> (<em>int</em>) – number of parallel jobs</p></li>
+<li><p><strong>img_name</strong> (<em>str</em>) – microscopy image filename</p></li>
+<li><p><strong>view_blobs</strong> (<em>bool</em>) – visualize point cloud in the Napari viewer</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="neuCnt3d.input.get_file_info">
+<span class="sig-prename descclassname"><span class="pre">neuCnt3d.input.</span></span><span class="sig-name descname"><span class="pre">get_file_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cli_args</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#neuCnt3d.input.get_file_info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get microscopy image file path and format.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>cli_args</strong> (<em>see ArgumentParser.parse_args</em>) – populated namespace of command line arguments</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>img_path</strong> (<em>str</em>) – path to the input microscopy volume image</p></li>
+<li><p><strong>img_name</strong> (<em>str</em>) – name of the input microscopy volume image</p></li>
+<li><p><strong>is_tiled</strong> (<em>bool</em>) – True for tiled reconstructions aligned using ZetaStitcher</p></li>
+<li><p><strong>is_mmap</strong> (<em>bool</em>) – create a memory-mapped array of the microscopy volume image,
+increasing the parallel processing performance
+(the image will be preliminarily loaded to RAM)</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="neuCnt3d.input.get_image_info">
+<span class="sig-prename descclassname"><span class="pre">neuCnt3d.input.</span></span><span class="sig-name descname"><span class="pre">get_image_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">px_sz</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ch_neu</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_tiled</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ch_axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#neuCnt3d.input.get_image_info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get information on the input microscopy volume image.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><em>numpy.ndarray</em></a><em> or </em><em>memory-mapped file</em><em> (</em><em>axis order:</em><em> (</em><em>Z</em><em>,</em><em>Y</em><em>,</em><em>X</em><em>)</em><em>)</em>) – microscopy volume image</p></li>
+<li><p><strong>px_sz</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><em>numpy.ndarray</em></a><em> (</em><em>shape=</em><em>(</em><em>3</em><em>,</em><em>)</em><em>, </em><em>dtype=float</em><em>)</em>) – pixel size [μm]</p></li>
+<li><p><strong>ch_neu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – neuronal soma channel</p></li>
+<li><p><strong>is_tiled</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a>) – True for tiled reconstructions aligned using ZetaStitcher</p></li>
+<li><p><strong>ch_axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – channel axis</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>img_shape</strong> (<em>numpy.ndarray (shape=(3,), dtype=int)</em>) – volume image shape [px]</p></li>
+<li><p><strong>img_shape_um</strong> (<em>numpy.ndarray (shape=(3,), dtype=float)</em>) – volume image shape [μm]</p></li>
+<li><p><strong>img_item_sz</strong> (<em>int</em>) – array item size (in bytes)</p></li>
+<li><p><strong>img_max</strong> (<em>float</em>) – max image value</p></li>
+<li><p><strong>ch_neu</strong> (<em>int</em>) – neuronal body channel (RGB image)</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="neuCnt3d.input.load_microscopy_image">
+<span class="sig-prename descclassname"><span class="pre">neuCnt3d.input.</span></span><span class="sig-name descname"><span class="pre">load_microscopy_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cli_args</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#neuCnt3d.input.load_microscopy_image" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load microscopy volume image from TIFF, NumPy or ZetaStitcher .yml file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>cli_args</strong> (<em>see ArgumentParser.parse_args</em>) – populated namespace of command line arguments</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>img</strong> (<em>numpy.ndarray or NumPy memory-map object (axis order: (Z,Y,X))</em>) – microscopy volume image</p></li>
+<li><p><strong>is_tiled</strong> (<em>bool</em>) – True for tiled microscopy reconstructions aligned using ZetaStitcher</p></li>
+<li><p><strong>cli_args</strong> (<em>see ArgumentParser.parse_args</em>) – updated namespace of command line arguments</p></li>
+<li><p><strong>save_dir</strong> (<em>str</em>) – saving directory</p></li>
+<li><p><strong>tmp</strong> (<em>str</em>) – temporary file directory</p></li>
+<li><p><strong>img_name</strong> (<em>str</em>) – microscopy image name</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="detection.html" class="btn btn-neutral float-left" title="neuCnt3d.detection" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="output.html" class="btn btn-neutral float-right" title="neuCnt3d.output" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Michele Sorelli.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

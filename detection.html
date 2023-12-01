@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>neuCnt3d.detection &mdash; NeuCnt3D 0.1.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+        <script src="https://docs.python.org/3/_static/copybutton.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="neuCnt3d.input" href="input.html" />
+    <link rel="prev" title="Python module index" href="modules.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            NeuCnt3D
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Python module index</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">neuCnt3d.detection</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#neuCnt3d.detection.config_detection_scales"><code class="docutils literal notranslate"><span class="pre">config_detection_scales()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#neuCnt3d.detection.correct_blob_coord"><code class="docutils literal notranslate"><span class="pre">correct_blob_coord()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#neuCnt3d.detection.detect_soma"><code class="docutils literal notranslate"><span class="pre">detect_soma()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#neuCnt3d.detection.merge_parallel_blobs"><code class="docutils literal notranslate"><span class="pre">merge_parallel_blobs()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="input.html">neuCnt3d.input</a></li>
+<li class="toctree-l2"><a class="reference internal" href="output.html">neuCnt3d.output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pipeline.html">neuCnt3d.pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="preprocessing.html">neuCnt3d.preprocessing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="printing.html">neuCnt3d.printing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slicing.html">neuCnt3d.slicing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html">neuCnt3d.utils</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">NeuCnt3D</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">Python module index</a></li>
+      <li class="breadcrumb-item active">neuCnt3d.detection</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/detection.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-neuCnt3d.detection">
+<span id="neucnt3d-detection"></span><h1>neuCnt3d.detection<a class="headerlink" href="#module-neuCnt3d.detection" title="Permalink to this heading">¶</a></h1>
+<dl class="py function">
+<dt class="sig sig-object py" id="neuCnt3d.detection.config_detection_scales">
+<span class="sig-prename descclassname"><span class="pre">neuCnt3d.detection.</span></span><span class="sig-name descname"><span class="pre">config_detection_scales</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">diam_um</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">px_sz</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#neuCnt3d.detection.config_detection_scales" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the minimum and maximum standard deviation
+for the Gaussian kernel used by the blob detection algorithm.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>diam_um</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.12)"><em>tuple</em></a>) – soma diameter (minimum, maximum, step size) [μm]</p></li>
+<li><p><strong>px_sz</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><em>numpy.ndarray</em></a><em> (</em><em>shape=</em><em>(</em><em>3</em><em>,</em><em>)</em><em>, </em><em>dtype=float</em><em>)</em>) – pixel size [μm]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>sigma_px</strong> (<em>numpy.ndarray (shape=(2,), dtype=int)</em>) – minimum and maximum spatial scales [px]</p></li>
+<li><p><strong>sigma_num</strong> (<em>int</em>) – number of spatial scales analyzed</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="neuCnt3d.detection.correct_blob_coord">
+<span class="sig-prename descclassname"><span class="pre">neuCnt3d.detection.</span></span><span class="sig-name descname"><span class="pre">correct_blob_coord</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">blobs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slice_rng</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slice_ovlp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z_sel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#neuCnt3d.detection.correct_blob_coord" title="Permalink to this definition">¶</a></dt>
+<dd><p>Correct the original soma coordinates with respect to
+the relative image slice position and delete detections
+out of the requested depth range.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>blobs</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><em>numpy.ndarray</em></a><em> (</em><em>shape=</em><em>(</em><em>N</em><em>,</em><em>4</em><em>)</em><em>)</em>) – 2D array with each row representing 3 coordinate values for a 3D image,
+plus the best sigma of the Gaussian kernel which detected the blob</p></li>
+<li><p><strong>slice_rng</strong> (<em>NumPy slice object</em>) – image slice index range</p></li>
+<li><p><strong>slice_ovlp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – image slice lateral overlap [px]</p></li>
+<li><p><strong>z_sel</strong> (<em>NumPy slice object</em>) – selected z-depth range</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>blobs</strong> – 2D array with each row representing 3 coordinate values for a 3D image,
+plus the best sigma of the Gaussian kernel which detected the blob</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)">numpy.ndarray</a> (shape=(N,4))</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="neuCnt3d.detection.detect_soma">
+<span class="sig-prename descclassname"><span class="pre">neuCnt3d.detection.</span></span><span class="sig-name descname"><span class="pre">detect_soma</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_sigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_sigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_sigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">approach</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'log'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thresh_rel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blob_ovlp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">border</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dark</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#neuCnt3d.detection.detect_soma" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply 3D soma segmentation filter to input volume image.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><em>numpy.ndarray</em></a><em> or </em><em>memory-mapped file</em><em> (</em><em>axis order:</em><em> (</em><em>Z</em><em>,</em><em>Y</em><em>,</em><em>X</em><em>)</em><em>)</em>) – soma fluorescence volume image</p></li>
+<li><p><strong>min_sigma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – minimum spatial scale [px]</p></li>
+<li><p><strong>max_sigma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – maximum spatial scale [px]</p></li>
+<li><p><strong>num_sigma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a>) – number of spatial scales analyzed</p></li>
+<li><p><strong>sigma_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – the ratio between the standard deviation of Gaussian kernels
+used for computing the Difference of Gaussian</p></li>
+<li><p><strong>approach</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><em>str</em></a>) – blob detection approach
+(log: Laplacian of Gaussian; or dog: Difference of Gaussian)</p></li>
+<li><p><strong>thresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – minimum peak intensity in the filtered image</p></li>
+<li><p><strong>thresh_rel</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – minimum percentage peak intensity in the filtered image relative to maximum [%]</p></li>
+<li><p><strong>blob_ovlp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – maximum blob overlap percentage [%]</p></li>
+<li><p><strong>border</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.12)"><em>tuple</em></a>) – each element of the tuple will exclude peaks from within exclude_border-pixels
+of the border of the image along that dimension</p></li>
+<li><p><strong>dark</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><em>bool</em></a>) – if True, detect dark 3D blob-like structures
+(i.e., negative contrast polarity)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>blobs</strong> – 2D array with each row representing 3 coordinate values for a 3D image,
+plus the best sigma of the Gaussian kernel which detected the blob</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)">numpy.ndarray</a> (shape=(N,4))</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="neuCnt3d.detection.merge_parallel_blobs">
+<span class="sig-prename descclassname"><span class="pre">neuCnt3d.detection.</span></span><span class="sig-name descname"><span class="pre">merge_parallel_blobs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">par_blobs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#neuCnt3d.detection.merge_parallel_blobs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Merge blobs detected by parallel processes or threads,
+filtering out empty background slices.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>par_blobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.12)"><em>list</em></a><em> of </em><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><em>numpy.ndarray</em></a>) – list of blob coordinates extracted in parallel
+from separate basic image slices</p></li>
+<li><p><strong>inv</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><em>int</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><em>float</em></a>) – invalid value assigned to skipped
+background slices</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>blobs</strong> – 2D array with each row representing 3 coordinate values for a 3D image,
+plus the best sigma of the Gaussian kernel which detected the blob</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)">numpy.ndarray</a> (shape=(N,4))</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="modules.html" class="btn btn-neutral float-left" title="Python module index" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="input.html" class="btn btn-neutral float-right" title="neuCnt3d.input" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Michele Sorelli.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
