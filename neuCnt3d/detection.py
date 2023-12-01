@@ -173,5 +173,6 @@ def merge_parallel_blobs(par_blobs, inv=-1):
     inv = inv * np.ones((4,))
     par_blobs = [x for x in par_blobs if not (x == inv).all()]
     blobs = np.vstack(par_blobs)
+    blobs = np.unique(blobs, axis=0)
 
     return blobs
