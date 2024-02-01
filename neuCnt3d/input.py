@@ -214,7 +214,7 @@ def get_detection_config(cli_args, img_name):
     px_sz: numpy.ndarray (shape=(3,), dtype=float)
         pixel size [μm]
 
-    z_rng: int
+    z_rng: tuple
         output z-range in [px]
 
     ch_neu: int
@@ -276,7 +276,7 @@ def get_detection_config(cli_args, img_name):
     z_rng = (z_min, z_max)
 
     # add configuration prefix to output filenames
-    img_name = add_output_prefix(img_name, min_diam_um, max_diam_um, blob_method)
+    img_name = add_output_prefix(img_name, min_diam_um, max_diam_um, blob_method, rel_loc_thr, rel_glob_thr)
 
     return blob_method, diam_um, blob_ovlp, rel_glob_thr, rel_loc_thr, px_sz, \
         z_rng, ch_neu, dark, backend, max_ram, jobs, img_name, view_blobs

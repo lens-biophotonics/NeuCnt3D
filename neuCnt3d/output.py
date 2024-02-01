@@ -43,7 +43,7 @@ def create_save_dir(img_path, img_name):
     return save_dir
 
 
-def save_soma(blobs, px_sz, save_dir, save_name):
+def save_soma(blobs, px_sz, z_rng, save_dir, save_name):
     """
     Save detected soma coordinates and radii to log file.
 
@@ -56,6 +56,9 @@ def save_soma(blobs, px_sz, save_dir, save_name):
     px_sz: numpy.ndarray (shape=(3,), dtype=float)
         pixel size [μm]
 
+    z_rng: tuple
+        output z-range in [px]
+
     save_dir: str
         saving directory
 
@@ -66,6 +69,10 @@ def save_soma(blobs, px_sz, save_dir, save_name):
     -------
     None
     """
+
+    # correct z-depths by adding offset value
+    blobs[:, 0] += z_rng[0]
+
     # convert blob coordinates to [μm]
     blobs = blobs * px_sz[0]
 

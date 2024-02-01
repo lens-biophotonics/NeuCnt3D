@@ -25,7 +25,7 @@ def config_detection_scales(diam_um, px_sz):
     """
     min_diam_um, max_diam_um, stp_diam_um = diam_um
     sigma_num = len(np.arange(min_diam_um, max_diam_um, stp_diam_um))
-    sigma_px = np.array([min_diam_um, max_diam_um]) / (2 * np.sqrt(3) * np.max(px_sz))
+    sigma_px = np.array([min_diam_um, max_diam_um]) / (2 * np.sqrt(3) * np.min(px_sz))
 
     # one scale at least
     if sigma_num <= 0:

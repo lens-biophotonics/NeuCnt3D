@@ -116,7 +116,7 @@ def get_item_bytes(data):
     return item_bytes
 
 
-def add_output_prefix(img_name, min_diam_um, max_diam_um, method):
+def add_output_prefix(img_name, min_diam_um, max_diam_um, method, rel_loc_thr, rel_glob_thr):
     """
     Generate the output filename including
     information on the blob detection configuration.
@@ -136,12 +136,20 @@ def add_output_prefix(img_name, min_diam_um, max_diam_um, method):
         blob detection approach
         (log: Laplacian of Gaussian; or dog: Difference of Gaussian)
 
+    rel_loc_thr: float
+        minimum intensity of peaks in the filtered image
+        relative to local slice maximum
+
+    rel_glob_thr: float
+        minimum intensity of peaks in the filtered image
+        relative to global maximum
+
     Returns
     -------
     out_name: str
         extended filename
     """
-    pfx = method + '_minD' + str(min_diam_um) + 'um_maxD' + str(max_diam_um) + 'um_'
-    out_name = pfx + 'img' + img_name
+    out_name = '{}_minD{}um_maxD{}um_globthr{}_locthr{}_img{}' \
+        .format(method, min_diam_um, max_diam_um, rel_glob_thr, rel_loc_thr, img_name)
 
     return out_name
